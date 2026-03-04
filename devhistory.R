@@ -1,7 +1,7 @@
 # Create project on Github
 
 ## Create compendium
-rrtools::use_compendium("/Users/lolazcuaga/Documents/Asellus_Mesocosm_Ecoevo/", open = FALSE)
+rrtools::use_compendium("/Users/lolazcuaga/Documents/RESEARCH_Local/Asellus_Mesocosm_Ecoevo/", open = FALSE)
 
 ## Add to .gitignore
 usethis::use_git_ignore(".DS_Store")
@@ -19,8 +19,6 @@ dir.create("figures")
 
 ## Create a R directory and a file for functions
 usethis::use_r("theme_LO")
-usethis::use_r("simulate_logist")
-usethis::use_r("simulate_GAMM")
 
 ## Update DESCRIPTION file
 usethis::use_package("ggplot2")
