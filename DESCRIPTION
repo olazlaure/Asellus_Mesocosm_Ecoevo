@@ -1,5 +1,5 @@
-Package: AnalysisEvolRescueExp
-Title: Analyze Population size, Extinction, Life-History Traits
+Package: Asellus_Mesocosm_Ecoevo
+Title: Analysis of diverse ecological traits and ecosystem function
 Version: 0.0.0.1
 Authors@R: 
     c(person(given = "Laure",
@@ -7,9 +7,9 @@ Authors@R:
            role = c("aut", "cre"),
            email = "olaz.laure@gmail.com",
            comment = c(ORCID = "0000-0001-9100-1305")))
-Description: This research compendium describes how to analyze population size, extinction, life-history traits data from an evolutionary rescue experiment conducted in 2021.
-URL: https://github.com/olazlaure/AnalysisEvolRescueExp
-BugReports: https://github.com/olazlaure/AnalysisEvolRescueExp/issues
+Description: This research compendium describes how to analyze different ecological traits from 2-year mesocosm experiment
+URL: https://github.com/olazlaure/Asellus_Mesocosm_Ecoevo
+BugReports: https://github.com/olazlaure/Asellus_Mesocosm_Ecoevo/issues
 License: MIT + file LICENSE
 ByteCompile: true
 Encoding: UTF-8
