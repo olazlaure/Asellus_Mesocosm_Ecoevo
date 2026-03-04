@@ -27,4 +27,9 @@ Imports:
     plyr,
     sjPlot,
     FactoMineR,
-    mgcv
+    mgcv,
+    car,
+    itsadug,
+    gather,
+    tidymv,
+    survminer
