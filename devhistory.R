@@ -28,6 +28,7 @@ usethis::use_package("r2glmm")
 usethis::use_package("splines")
 usethis::use_package("nlme")
 usethis::use_package("glmmTMB")
+usethis::use_package("rphylopic")
 
 ## Update NAMESPACE file
 devtools::document()

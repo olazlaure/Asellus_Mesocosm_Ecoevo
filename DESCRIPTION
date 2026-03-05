@@ -25,4 +25,5 @@ Imports:
     MuMIn,
     splines,
     nlme,
-    glmmTMB
+    glmmTMB,
+    rphylopic
