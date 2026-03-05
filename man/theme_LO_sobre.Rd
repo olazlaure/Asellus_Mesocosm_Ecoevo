@@ -10,10 +10,13 @@ An object of class \code{theme} (inherits from \code{ggplot2::theme}, \code{gg},
 \usage{
 theme_LO_sobre
 }
+\value{
+A ggplot2 theme object
+}
 \description{
 Object: Sober theme for ggplot
 }
 \examples{
-PLOT_MAIN_Text<-ggplot + theme_LO_sobre
+PLOT_MAIN_Text <- ggplot + theme_LO_sobre
 }
 \keyword{datasets}
