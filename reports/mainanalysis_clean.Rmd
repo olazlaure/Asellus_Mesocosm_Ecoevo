@@ -27,13 +27,6 @@ devtools::load_all()
 # DATASET
 ## Open dataset
 ```{r }
-# library(dplyr)
-# library(lme4)
-# library(MuMIn) #R2 explained
-# library(r2glmm) #R2 explained
-# library(splines)
-# library(nlme)
-# library(glmmTMB)
 #####################
 ## 1 ## DECOMPOSITION 
 #####################
@@ -408,7 +401,7 @@ plot_size <- ggplot(data = datamerged) +
   facet_wrap(~ Tpop, labeller = labeller(Tpop = 
                                            c("Ambiant" = "Ambient",
                                         "Warm" = "Warm"))) +
-  add_phylopic(x = 2, y = 0.2, img = img, alpha = 1, 
+   rphylopic::add_phylopic(x = 2, y = 0.2, img = img, alpha = 1, 
                ysize = 0.009) +
   geom_boxplot(aes(y = Length, x = Predpop, 
                    group = interaction(Tpop,Predpop), 
@@ -495,8 +488,8 @@ plot_rawdata <- ggplot(data = datamerged) +
 
 ## OUTLIER EMMA 
 # Calculer l'IQR du jeu de données
-q1 <- quantile(datamerged$Slope_Corrected, 0.25)
-q3 <- quantile(datamerged$Slope_Corrected, 0.75)
+q1 <- stats::quantile(datamerged$Slope_Corrected, 0.25, na.rm = TRUE)
+q3 <- stats::quantile(datamerged$Slope_Corrected, 0.75, na.rm = TRUE)
 iqr <- q3 - q1
 # Définir la plage de valeurs acceptables
 lower <- q1 - 1.5 * iqr
@@ -2003,9 +1996,9 @@ colnames(cor_df) <- c("Var1", "Var2", "Correlation")
 cor_df <- cor_df[as.numeric(cor_df$Var1) < as.numeric(cor_df$Var2), ]
 # 4. Heatmap
 ggplot(cor_df, aes(x = Var1, y = Var2, fill = Correlation)) +
-  geom_tile(color = "white") +
+  ggplot2::geom_tile(color = "white") +
   geom_text(aes(label = round(Correlation, 2)), size = 3) +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white",
+  ggplot2::scale_fill_gradient2(low = "blue", high = "red", mid = "white",
                        midpoint = 0, limit = c(-1, 1)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -2078,48 +2071,48 @@ SUM_Decompo <- data_decompo_clean %>%
 ### Function to extract PST
 ```{r }
 
-mod_slope_decompo = glmmTMB(Slope~1+(1|EvolHistory/Pop), data = SUM_Decompo)
+mod_slope_decompo = glmmTMB::glmmTMB(Slope~1+(1|EvolHistory/Pop), data = SUM_Decompo)
 model=mod_slope_decompo
-
-compute_PST_glmmTMB <- function(model, group_name = "EvolHistory") {
-  # Extract conditional random effect SDs
-  
-  # Get VarCorr object
-  vc <- VarCorr(model)
-
-  # Conditional random effects
-  cond_var <- c(Pop.EvolHistory = vc$cond$`Pop:EvolHistory`[1,1],
-    EvolHistory = vc$cond$EvolHistory[1,1])
-
-
-  # Assign names automatically from VarCorr
-  rand_names <- names(cond_var)
-  
-  
-  if(length(rand_names) != length(cond_var)) rand_names <- paste0("RE", seq_along(rand_var))
-  names(cond_var) <- rand_names
-  
-  # Residual variance
-  var_resid <- sigma(model)^2
-  
-  
-  # Total variance
-  total_var <- sum(cond_var) + var_resid
-  
-  # Variance of focal group
-  if(!group_name %in% names(cond_var)) stop(paste("Group", group_name, "not found"))
-  var_group <- cond_var[group_name]
-  
-  # PST
-  PST <- var_group / total_var
-  
-  # Build table
-  variance_table <- data.frame(
-    Group = c(names(cond_var), "Residual", "Total"),
-    Variance = c(cond_var, var_resid, total_var))
-  
-  return(list(PST = PST, table = variance_table))
-}
+# 
+# compute_PST_glmmTMB <- function(model, group_name = "EvolHistory") {
+#   # Extract conditional random effect SDs
+#   
+#   # Get VarCorr object
+#   vc <- VarCorr(model)
+# 
+#   # Conditional random effects
+#   cond_var <- c(Pop.EvolHistory = vc$cond$`Pop:EvolHistory`[1,1],
+#     EvolHistory = vc$cond$EvolHistory[1,1])
+# 
+# 
+#   # Assign names automatically from VarCorr
+#   rand_names <- names(cond_var)
+#   
+#   
+#   if(length(rand_names) != length(cond_var)) rand_names <- paste0("RE", seq_along(rand_var))
+#   names(cond_var) <- rand_names
+#   
+#   # Residual variance
+#   var_resid <- sigma(model)^2
+#   
+#   
+#   # Total variance
+#   total_var <- sum(cond_var) + var_resid
+#   
+#   # Variance of focal group
+#   if(!group_name %in% names(cond_var)) stop(paste("Group", group_name, "not found"))
+#   var_group <- cond_var[group_name]
+#   
+#   # PST
+#   PST <- var_group / total_var
+#   
+#   # Build table
+#   variance_table <- data.frame(
+#     Group = c(names(cond_var), "Residual", "Total"),
+#     Variance = c(cond_var, var_resid, total_var))
+#   
+#   return(list(PST = PST, table = variance_table))
+# }
 
 # Usage
 res <- compute_PST_glmmTMB(mod_slope_decompo)
@@ -2131,7 +2124,6 @@ res$table     # Table of variance components
 
 ### Models GlmmTMB - Real data
 ```{r }
-library(glmmTMB)
 
 data_sum_PST <- data.frame("Var" = c("Mean_Mass",
                                      "Mean_Respiro", 
@@ -2145,7 +2137,7 @@ data_sum_PST <- data.frame("Var" = c("Mean_Mass",
 
 
 # MASS
-mod_mean_mass=glmmTMB(Mean~1+(1|EvolHistory/Pop), data = SUM_Mass)
+mod_mean_mass=glmmTMB::glmmTMB(Mean~1+(1|EvolHistory/Pop), data = SUM_Mass)
 summary(mod_mean_mass)
 res <- compute_PST_glmmTMB(mod_mean_mass)
 res$PST
@@ -2162,20 +2154,20 @@ data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$PST <- res$PST
 
 
 # RESPIRO 
-mod_mean_respiro=glmmTMB(mean_level~1+(1|EvolHistory/Pop), data = SUM_Respi)
+mod_mean_respiro=glmmTMB::glmmTMB(mean_level~1+(1|EvolHistory/Pop), data = SUM_Respi)
 summary(mod_mean_respiro)
 res <- compute_PST_glmmTMB(mod_mean_respiro)
 res$PST
 data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$PST <- res$PST
 
-mod_slope_respiro=glmmTMB(optimum_temp~1+(1|EvolHistory/Pop), data = SUM_Respi)
+mod_slope_respiro=glmmTMB::glmmTMB(optimum_temp~1+(1|EvolHistory/Pop), data = SUM_Respi)
 summary(mod_slope_respiro)
 res <- compute_PST_glmmTMB(mod_slope_respiro)
 res$PST
 data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$PST <- res$PST
 
 
-mod_slope_respiro=glmmTMB(sd_shape~1+(1|EvolHistory/Pop), data = SUM_Respi)
+mod_slope_respiro=glmmTMB::glmmTMB(sd_shape~1+(1|EvolHistory/Pop), data = SUM_Respi)
 summary(mod_slope_respiro)
 res <- compute_PST_glmmTMB(mod_slope_respiro)
 res$PST
@@ -2183,13 +2175,13 @@ data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$PST <- res$PST
 
 
 # DECOMPO 
-mod_mean_decompo = glmmTMB(Mean~1+(1|EvolHistory/Pop), data = SUM_Decompo)
+mod_mean_decompo = glmmTMB::glmmTMB(Mean~1+(1|EvolHistory/Pop), data = SUM_Decompo)
 summary(mod_mean_decompo)
 res <- compute_PST_glmmTMB(mod_mean_decompo)
 res$PST
 data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$PST <- res$PST
 
-mod_slope_decompo = glmmTMB(Slope~1+(1|EvolHistory/Pop), data = SUM_Decompo)
+mod_slope_decompo = glmmTMB::glmmTMB(Slope~1+(1|EvolHistory/Pop), data = SUM_Decompo)
 summary(mod_slope_decompo)
 res <- compute_PST_glmmTMB(mod_slope_decompo)
 res$PST
@@ -2213,13 +2205,13 @@ res_simul <- numeric(nsimul)
 for (i in 1:nsimul) {
   idx_remove <- sample(1:nrow(SUM_Mass), size = 1)
   SUM_Mass_subset <- SUM_Mass[-idx_remove, ]
-  mod_mean_mass <- glmmTMB(Mean ~ 1 + (1 | EvolHistory/Pop), data = SUM_Mass_subset)
+  mod_mean_mass <- glmmTMB::glmmTMB(Mean ~ 1 + (1 | EvolHistory/Pop), data = SUM_Mass_subset)
   res <- compute_PST_glmmTMB(mod_mean_mass)
   res_simul[i] <- res$PST
 }
 
-data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$CI.low <- quantile(res_simul,0.025)
-data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$CI.up <- quantile(res_simul,0.975)
+data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$CI.low <- stats::quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$CI.up <- stats::quantile(res_simul,0.975)
 
 
 
@@ -2228,14 +2220,14 @@ res_simul <- numeric(nsimul)
 for (i in 1:nsimul) {
   idx_remove <- sample(1:nrow(SUM_Respi), size = 1)
   SUM_subset <- SUM_Respi[-idx_remove, ]
-  mod_subset <- glmmTMB(mean_level ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  mod_subset <- glmmTMB::glmmTMB(mean_level ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
   res <- compute_PST_glmmTMB(mod_subset)
   res_simul[i] <- res$PST
   rm(mod_subset,SUM_subset,res)
 }
 
-data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$CI.low <- quantile(res_simul,0.025)
-data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$CI.up <- quantile(res_simul,0.975)
+data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$CI.low <- stats::quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$CI.up <- stats::quantile(res_simul,0.975)
 
 
 #SLOPE RESIRO
@@ -2243,28 +2235,28 @@ res_simul <- numeric(nsimul)
 for (i in 1:nsimul) {
   idx_remove <- sample(1:nrow(SUM_Respi), size = 1)
   SUM_subset <- SUM_Respi[-idx_remove, ]
-  mod_subset <- glmmTMB(optimum_temp ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  mod_subset <- glmmTMB::glmmTMB(optimum_temp ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
   res <- compute_PST_glmmTMB(mod_subset)
   res_simul[i] <- res$PST
   rm(mod_subset,SUM_subset,res)
 }
 
-data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$CI.low <- quantile(res_simul,0.025)
-data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$CI.up <- quantile(res_simul,0.975)
+data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$CI.low <- stats::quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$CI.up <- stats::quantile(res_simul,0.975)
 
 #Slope SD 
 res_simul <- numeric(nsimul) 
 for (i in 1:nsimul) {
   idx_remove <- sample(1:nrow(SUM_Respi), size = 1)
   SUM_subset <- SUM_Respi[-idx_remove, ]
-  mod_subset <- glmmTMB(sd_shape ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  mod_subset <- glmmTMB::glmmTMB(sd_shape ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
   res <- compute_PST_glmmTMB(mod_subset)
   res_simul[i] <- res$PST
   rm(mod_subset,SUM_subset,res)
 }
 
-data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$CI.low <- quantile(res_simul,0.025)
-data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$CI.up <- quantile(res_simul,0.975)
+data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$CI.low <- stats::quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$CI.up <- stats::quantile(res_simul,0.975)
 
 
 
@@ -2273,28 +2265,28 @@ res_simul <- numeric(nsimul)
 for (i in 1:nsimul) {
   idx_remove <- sample(1:nrow(SUM_Decompo), size = 1)
   SUM_subset <- SUM_Decompo[-idx_remove, ]
-  mod_subset <- glmmTMB(Mean ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  mod_subset <- glmmTMB::glmmTMB(Mean ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
   res <- compute_PST_glmmTMB(mod_subset)
   res_simul[i] <- res$PST
   rm(mod_subset,SUM_subset,res)
 }
 
-data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$CI.low <- quantile(res_simul,0.025)
-data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$CI.up <- quantile(res_simul,0.975)
+data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$CI.low <- stats::quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$CI.up <- stats::quantile(res_simul,0.975)
 
 
 res_simul <- numeric(nsimul) 
 for (i in 1:nsimul) {
   idx_remove <- sample(1:nrow(SUM_Decompo), size = 1)
   SUM_subset <- SUM_Decompo[-idx_remove, ]
-  mod_subset <- glmmTMB(Slope ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  mod_subset <- glmmTMB::glmmTMB(Slope ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
   res <- compute_PST_glmmTMB(mod_subset)
   res_simul[i] <- res$PST
   rm(mod_subset,SUM_subset,res)
 }
 
-data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$CI.low <- quantile(res_simul,0.025)
-data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$CI.up <- quantile(res_simul,0.975)
+data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$CI.low <- stats::quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$CI.up <- stats::quantile(res_simul,0.975)
 
 
 
@@ -2305,7 +2297,7 @@ data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$CI.up <- quantile(res_simul,0.9
 
 ###  Plot
 ```{r }
-library(ggtext)  # enables HTML/Markdown in titles
+# library(ggtext)  # enables HTML/Markdown in titles
 
 data_sum_PST$PST_percent = data_sum_PST$PST*100
 data_sum_PST$CI.low_percent = data_sum_PST$CI.low*100
@@ -2313,25 +2305,25 @@ data_sum_PST$CI.up_percent = data_sum_PST$CI.up*100
 
 data_sum_PST$Var <- factor(data_sum_PST$Var, levels = rev(unique(data_sum_PST$Var)))
 
-plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
-  #geom_hline(yintercept = 1:length(unique(data_sum_PST$Var)), color = "gray95", size = 0.2) +
-  geom_point(size = 3) +
-  geom_errorbarh(aes(xmin = CI.low_percent, xmax = CI.up_percent), height = 0.2, color = "black") +
-  geom_vline(xintercept = 21.67, lty = 1, color = "indianred2") + 
-  geom_vline(xintercept = 20.98, lty = 2, color = "indianred2") + 
-  geom_vline(xintercept = 22.34, lty = 2, color = "indianred2") + 
-  scale_x_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +
-  labs(
-    x = "<span style='color:indianred2;'>Fst  </span> <span style='color:white;'>------- </span> <span style='color:black;'>Pst        </span> <span style='color:white;'>------_____-- </span>", 
-    y=NULL) +
-  scale_y_discrete(breaks = unique(data_sum_PST$Var), 
-                   labels = c("Mean Mass", "Mean metabolic rate",
-                              "Temperature-dependent\noptimum metabolic rate",
-                              "Temperature-dependent\nvariation metabolic rate",
-                              "Mean decomposition rate", "Temperature-dependent\ndecomposition rate")) +
-  theme_LO_sobre +
-  theme(axis.title.x = element_markdown())  # <- override after your theme
-plotPSTFST
+# plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
+#   #geom_hline(yintercept = 1:length(unique(data_sum_PST$Var)), color = "gray95", size = 0.2) +
+#   geom_point(size = 3) +
+#   geom_errorbarh(aes(xmin = CI.low_percent, xmax = CI.up_percent), height = 0.2, color = "black") +
+#   geom_vline(xintercept = 21.67, lty = 1, color = "indianred2") + 
+#   geom_vline(xintercept = 20.98, lty = 2, color = "indianred2") + 
+#   geom_vline(xintercept = 22.34, lty = 2, color = "indianred2") + 
+#   scale_x_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +
+#   labs(
+#     x = "<span style='color:indianred2;'>Fst  </span> <span style='color:white;'>------- </span> <span style='color:black;'>Pst        </span> <span style='color:white;'>------_____-- </span>", 
+#     y=NULL) +
+#   ggplot2::scale_y_discrete(breaks = unique(data_sum_PST$Var), 
+#                    labels = c("Mean Mass", "Mean metabolic rate",
+#                               "Temperature-dependent\noptimum metabolic rate",
+#                               "Temperature-dependent\nvariation metabolic rate",
+#                               "Mean decomposition rate", "Temperature-dependent\ndecomposition rate")) +
+#   theme_LO_sobre +
+#   theme(axis.title.x = ggtext::element_markdown())  # <- override after your theme
+# plotPSTFST
 
 plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
   geom_point(aes(color = Var), size = 3) +
@@ -2344,10 +2336,10 @@ plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
   labs(
     x = "<span style='color:indianred2;'>Fst  </span> <span style='color:white;'>------- </span> <span style='color:black;'>Pst        </span> <span style='color:white;'>------_____-- </span>", 
     y = NULL) +
-  scale_y_discrete(breaks = unique(data_sum_PST$Var), 
+  ggplot2::scale_y_discrete(breaks = unique(data_sum_PST$Var), 
     labels = c("Mean body mass", "Mean metabolic rate",
                "Temperature-dependent\noptimum metabolic rate",
-               "Temperature-dependent\nvariation metabolic rate",
+               "Thermal breadth of\nmetabolic rate",
                "Mean decomposition rate", 
                "Temperature-dependent\ndecomposition rate")) +
   scale_color_manual(values = c("Mean_Mass" = "#2176AE",
@@ -2357,13 +2349,13 @@ plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
       "Mean_Decompo" = "#2176AE",
       "Slope_Decompo" = "#2176AE")) +
   theme_LO_sobre +
-  theme(axis.title.x = element_markdown(),
+  theme(axis.title.x = ggtext::element_markdown(),
         legend.position = "none")  # hide legend if not needed
 
 plotPSTFST
 
 # 
-# cowplot::save_plot("Plot_Fig5_Pst_Fst_nsim1000.pdf",
+# cowplot::save_plot(file=here::here("figures","Plot_Fig5_Pst_Fst_nsim1000.pdf"),
 #                    plotPSTFST, base_height = 12/cm(1),
 #                    base_width = 17/cm(1), dpi = 610)
 # 
