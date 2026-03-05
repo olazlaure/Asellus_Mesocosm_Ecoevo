@@ -29,6 +29,9 @@ usethis::use_package("splines")
 usethis::use_package("nlme")
 usethis::use_package("glmmTMB")
 usethis::use_package("rphylopic")
+usethis::use_package("dplyr")
+usethis::use_package("Rmisc")
+usethis::use_package("cowplot")
 
 ## Update NAMESPACE file
 devtools::document()

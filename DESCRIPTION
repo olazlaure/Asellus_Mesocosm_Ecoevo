@@ -26,4 +26,5 @@ Imports:
     splines,
     nlme,
     glmmTMB,
-    rphylopic
+    rphylopic, 
+    dplyr 
