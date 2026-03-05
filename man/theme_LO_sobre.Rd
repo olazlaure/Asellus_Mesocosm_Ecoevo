@@ -17,6 +17,6 @@ A ggplot2 theme object
 Object: Sober theme for ggplot
 }
 \examples{
-PLOT_MAIN_Text <- ggplot + theme_LO_sobre
+PLOT_MAIN_Text <- ggplot + theme_LO_sobre 
 }
 \keyword{datasets}

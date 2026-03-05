@@ -7,7 +7,7 @@
 #' @export
 #'
 #' @examples
-#'PLOT_MAIN_Text <- ggplot + theme_LO_sobre
+#'PLOT_MAIN_Text <- ggplot + theme_LO_sobre 
 
 
 #Theme
