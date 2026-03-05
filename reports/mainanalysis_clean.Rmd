@@ -1,0 +1,3739 @@
+---
+title: "Mesocosm experiment: Traits analysis"
+author: "Laure Olazcuaga"
+date: "`r format(Sys.Date(), '%d-%B-%Y')`"
+output: 
+  html_document:
+    theme: "journal"
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include =FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+devtools::load_all()
+
+```
+
+
+    
+# DATASET
+## Open dataset
+```{r }
+# library(dplyr)
+# library(lme4)
+# library(MuMIn) #R2 explained
+# library(r2glmm) #R2 explained
+# library(splines)
+# library(nlme)
+# library(glmmTMB)
+#####################
+## 1 ## DECOMPOSITION 
+#####################
+data_decompo <-  read.csv(file=here::here("data",
+                                          "../DATA/Decomposition.csv"))
+head(data_decompo)
+
+
+pd <- position_dodge(0.25) # move them .05 to the left and right
+
+
+#####################
+## 2 ## RESPIRO 
+#####################
+data_respiro <- read.csv(file=here::here("data",
+                                         "../DATA/Data_respirometry_Asellus2025.csv"))
+head(data_respiro)
+
+#####################
+## 3 ## SIZE 
+#####################
+data_length <- read.csv(file=here::here("data",
+                                        "../DATA/Data_length_Asellus2025.csv"))
+head(data_length)
+
+#####################
+## 4 ## Mass_Ind 
+#####################
+#MASS_IND_EXPECTED = (MASS_POP * SIZE_IND) / SIZE_POP = (MASS_POP / SIZE_POP) * SIZE_IND 
+data_mass <- read.csv(file=here::here("data",
+                                      "../DATA/Data_weight_Asellus2025.csv"))
+
+``` 
+
+
+## Add Ratio Mass
+```{r }
+  #MASS_IND_EXPECTED = (MASS_POP * SIZE_IND) / SIZE_POP = (MASS_POP / SIZE_POP) * SIZE_IND 
+data_mass$Ratio <- data_mass$Mass / data_mass$Size
+
+
+MEAN_RATIO <- mean(data_mass$Ratio)
+
+### Option alternative : 
+data_mass$log_mass <- log(data_mass$Mass)
+data_mass$log_size <- log(data_mass$Size)
+lm_masssize <- lm(log_mass ~ log_size, data = data_mass)
+
+a_log <- coef(lm_masssize)[1]  # intercept (log(a))
+b <- coef(lm_masssize)[2]      # slope (b)
+a <- exp(a_log)
+
+ 
+
+
+
+
+######## REMOVE ALL PART BELOW BECAUSE not enough values per pop or per evol history 
+#to correctly estimate the ratio per pop or per evol history 
+#This leads to a bias and biases the weight estimates 
+#So a single ratio is estimated for all values.
+
+# ### Extract mean for Pred_Warm (B7) and  Pred_Ambiant (B6)
+## Function: one mean for all values matching pop_vec
+# get_mean_ratio <- function(pop_vec) {
+#   subset_data <- data_mass[data_mass$Bac %in% pop_vec, ]
+#   mean(subset_data$Ratio)
+# }
+# 
+# ## Apply for each vector
+# mean_ratio_NoPredAmbiant <- get_mean_ratio(pop_NoPredAmbiant)
+# mean_ratio_NoPredWarm    <- get_mean_ratio(pop_NoPredWarm)
+# mean_ratio_PredAmbiant   <- get_mean_ratio(pop_PredAmbiant)
+# mean_ratio_PredWarm      <- get_mean_ratio(pop_PredWarm)
+
+## Results
+# mean_ratio_NoPredAmbiant
+# mean_ratio_NoPredWarm
+# mean_ratio_PredAmbiant
+# mean_ratio_PredWarm
+
+
+## Function: one mean for all values matching pop_vec
+# get_length_ratio <- function(pop_vec) {
+#   subset_data <- data_mass[data_mass$Bac %in% pop_vec, ]
+#   length(subset_data$Ratio)
+# }
+
+## Apply for each vector
+#get_length_ratio(pop_PredAmbiant)
+#get_length_ratio(pop_PredWarm)
+
+
+# 
+# #Run after all the dataset chuncks:
+# datatest <- data_mass %>%
+#   left_join(
+#     datamerged %>%
+#       distinct(Pop, .keep_all = TRUE) %>%  # garde la 1ère ligne par Pop
+#       select(Pop, Tpop,Predpop),
+#     by = c("Bac" = "Pop")
+#   )
+# datatest$EvolHistory <- paste0(datatest$Predpop,"_",datatest$Tpop)
+
+
+# 
+# data_mass_pop <- Rmisc::summarySE(data = data_mass,measurevar ="Ratio","Bac")
+# data_mass_evolhistory <- Rmisc::summarySE(data = datatest,measurevar ="Ratio","EvolHistory")
+
+
+
+
+
+# ggplot(data=datatest, aes(x=Mass, y = Size, color = Bac)) + 
+#   facet_wrap(~ Bac) +
+#   geom_point()
+
+# ggplot(data=datatest, aes(x=Mass, y = Size, color = Bac)) + 
+#   facet_wrap(~ EvolHistory) +
+#   geom_point()
+# 
+# ggplot(datatest, aes(x = Ratio, y = Bac, color = EvolHistory)) +
+#   geom_point(position = position_jitter(width = 0, height = 0)) +
+#   theme_minimal()
+# 
+# ggplot(data=datatest, aes(x=Mass, y = Size, color = EvolHistory)) + 
+#   facet_wrap(~ EvolHistory) +
+#   geom_point()
+
+# ggplot(datatest, aes(x = Mass, y = Bac, color = EvolHistory)) +
+#   geom_point(position = position_jitter(width = 0.2, height = 0)) +
+#   theme_minimal()
+# ggplot(datatest, aes(x = Ratio, y = Bac, color = EvolHistory)) +
+#   geom_point(position = position_jitter(width = 0.2, height = 0)) +
+#   theme_minimal()
+# # 
+
+
+
+################## ADD RATIO TO ORIGINAL DATASET
+
+##### OPTION 1
+### ONE RATIO PER POP
+# datamerged <- datamerged %>%
+#   left_join(data_mass_pop %>% select(Bac, Ratio), 
+#             by = c("Pop" = "Bac" ))
+# head(datamerged)
+# 
+# ### Add Ratio for B6 and B7 
+# datamerged$Ratio[datamerged$Pop=="B6"] <- mean_ratio_PredAmbiant
+# datamerged$Ratio[datamerged$Pop=="B7"] <- mean_ratio_PredWarm
+
+##### OPTION 2
+###ONLY ONE RATIO PER EVOLHISTORY
+# datamerged <- datamerged %>%
+#   left_join(data_mass_evolhistory %>% select(EvolHistory, Ratio), 
+#             by = c("EvolHistory" = "EvolHistory" ))
+# head(datamerged)
+
+
+
+### OPTION3 ONE RATIO 
+data_length$Ratio <- MEAN_RATIO
+
+# Add Individual mass
+#data_length$Mass_Ind2 <- data_length$Ratio * data_length$Length
+#data_length$Mass_Ind2 <- intercept_mass + slope_mass*data_length$Length
+
+data_length$Mass_Ind <- a*(data_length$Length^b)
+
+#plot(data_length$Mass_Ind ~ data_length$Mass_Ind2)
+
+
+# As factor
+data_length$Tpop <- as.factor(data_length$Tpop)
+data_length$Pop <- as.factor(data_length$Pop)
+data_length$Predpop <- as.factor(data_length$Predpop)
+
+
+## CHECK OUTLIER
+head(data_length[order(data_length$Mass_Ind), ], 5)
+#Extreme and aberrant values : 
+data_length <- data_length[data_length$Mass_Ind >= 0.02,]
+
+
+
+``` 
+
+
+
+
+
+
+
+## Merge Length and respiro 
+```{r }
+keys = c("Ref", "ID_photo", "Round", "TempExp", "Reader", "TempExpNum", "Pop", 
+         "PopInd", "Tpop", "Predpop", "Survival", "Naivety")
+keys = intersect(names(data_length), names(data_respiro))
+
+
+
+# Merge
+datamerged <- merge(
+  data_length, data_respiro,
+  by = keys,
+  all = TRUE,
+  suffixes = c(".len", ".resp"))
+
+# --- Simple mismatch check ---
+common_cols <- intersect(names(data_length), names(data_respiro))
+common_cols <- setdiff(common_cols, keys)
+
+for (col in common_cols) {
+  col_len  <- paste0(col, ".len")
+  col_resp <- paste0(col, ".resp")
+  if (all(col_len %in% names(datamerged), col_resp %in% names(datamerged))) {
+    mismatch <- sum(datamerged[[col_len]] != datamerged[[col_resp]], na.rm = TRUE)
+    if (mismatch > 0) {
+      warning(sprintf("Column %s has %d mismatched values", col, mismatch))
+    }
+  }
+}
+
+head(datamerged)
+
+# --- 2. Clean merged dataset ---
+# Remove rows that are completely NA
+dim(datamerged)
+datamerged <- datamerged[rowSums(is.na(datamerged)) < ncol(datamerged), ]
+
+``` 
+
+
+
+## Estimate DecompoRate
+```{r }
+
+head(data_decompo)
+
+#REmove useless columns
+data_decompo_clean <- data_decompo[,c(1:10)]
+
+#Add usefull columns
+data_decompo_clean$EvolHistory <- as.factor(paste0(data_decompo_clean$Predpop,
+                                                   "_",
+                                        data_decompo_clean$Tpop))
+
+#Determine as factor 
+data_decompo_clean$Tpop <- as.factor(data_decompo_clean$Tpop)
+data_decompo_clean$Pop <- as.factor(data_decompo_clean$Pop)
+data_decompo_clean$Predpop <- as.factor(data_decompo_clean$Predpop)
+
+
+#check mortality similar across groups
+tapply(data_decompo_clean$Mortality,data_decompo_clean$TempExpNum, 
+       mean, na.rm=TRUE)
+tapply(data_decompo_clean$Mortality,data_decompo_clean$EvolHistory, 
+       mean, na.rm=TRUE)
+#Mortality is similar across groups 
+head(data_decompo_clean)
+
+
+### Add degradration percent
+data_decompo_clean$Deg_Rate <- data_decompo_clean$Deg_Weight/
+  data_decompo_clean$InWeight
+#Deg_Rate is the percent of mass lost 
+
+# plot(data_decompo_clean$Deg_Rate ~ data_decompo_clean$Mortality)
+
+## Consider control treatment: For the weigth 
+SUM_deg_control <- Rmisc::summarySE(data_decompo_clean[data_decompo_clean$Pop=="C",],
+                  measurevar = "Deg_Weight",
+                  groupvars = c("TempExpNum"))
+  
+data_decompo_clean <- merge(data_decompo_clean, 
+                     SUM_deg_control[, c("TempExpNum", "Deg_Weight")], 
+                     by = "TempExpNum", 
+                     all.x = TRUE)
+
+colnames(data_decompo_clean)[colnames(data_decompo_clean) == "Deg_Weight.x"] <- "Deg_Weight"
+colnames(data_decompo_clean)[colnames(data_decompo_clean) == "Deg_Weight.y"] <- "Deg_Weight_Control"
+
+
+head(data_decompo_clean)
+
+
+# Pour info:
+SUM_deg <- Rmisc::summarySE(data_decompo_clean[data_decompo_clean$Pop!="C",],
+                  measurevar = "Deg_Rate",
+                  groupvars = c("TempExpNum"))
+
+
+## Consider control treatment: For the rate 
+SUM_deg_control <- Rmisc::summarySE(data_decompo_clean[data_decompo_clean$Pop=="C",],
+                  measurevar = "Deg_Rate",
+                  groupvars = c("TempExpNum"))
+data_decompo_clean <- merge(data_decompo_clean, 
+                     SUM_deg_control[, c("TempExpNum", "Deg_Rate")], 
+                     by = "TempExpNum", 
+                     all.x = TRUE)
+colnames(data_decompo_clean)[colnames(data_decompo_clean) == "Deg_Rate.x"] <- "Deg_Rate"
+colnames(data_decompo_clean)[colnames(data_decompo_clean) == "Deg_Rate.y"] <- "Deg_Rate_Control"
+
+head(data_decompo_clean) 
+
+#Calculate Degradation rate normalized : Deg_Rate -  Deg_Rate_Control
+data_decompo_clean$Deg_Rate_Norm <- data_decompo_clean$Deg_Rate - data_decompo_clean$Deg_Rate_Control
+
+#Remove controle of the dataset
+data_decompo_clean_withcontrol <- data_decompo_clean
+data_decompo_clean <- data_decompo_clean[data_decompo_clean$EvolHistory!="C_C",]
+
+
+# check distribution : Rate ? 
+hist(data_decompo_clean$Deg_Rate_Norm)
+max(data_decompo_clean$Deg_Rate_Norm)
+min(data_decompo_clean$Deg_Rate_Norm)
+hist(data_decompo_clean$Deg_Rate_Norm)
+
+
+
+
+
+
+#The decomposition rate was estimated over 17 days as k = −ln(X)/t [Zhang et al. 2018 and Raffard et al. 2008, Raffard et al. 2021], where X is the proportion of litter remaining after consumption by the group of 10 individuals and t the time elapsed in days. 
+
+#-(log(10/100)/17) # Rate = 0.13 il en reste peu donc le rate est fort
+#-(log(90/100)/17) # Rate = 0.0006 il en reste beaucoup donc le rate est faible
+
+head(data_decompo_clean)
+
+data_decompo_clean$Deg_Rate_Raffard <- -(log( data_decompo_clean$OutWeight/
+  data_decompo_clean$InWeight)/17)
+
+tapply(data_decompo_clean$Deg_Rate_Raffard, data_decompo_clean$Pop, length)
+tapply(data_decompo_clean$Deg_Rate_Raffard, list(data_decompo_clean$Pop,data_decompo_clean$TempExpNum) , length)
+
+``` 
+
+## Correct datamerge
+```{r }
+#Estimate Slope corrected by the weight 
+datamerged$Slope_Corrected <- datamerged$Slope/datamerged$Mass_Ind
+
+#datamerged <- datamerged[!is.na(datamerged$Slope_Corrected),]
+datamerged$TempExpNumSquare <- datamerged$TempExpNum*datamerged$TempExpNum
+
+
+datamerged$EvolHistory <- as.factor(paste0(datamerged$Predpop,
+                                                   "_",
+                                        datamerged$Tpop))
+
+
+#Remove NA lines
+datamerged <- datamerged[!is.na(datamerged$Round),]
+
+
+#Remove the extreme outlier after visual check of the photo of this invidiual
+min(datamerged$Length, na.rm = TRUE)
+datamerged[datamerged$Length==0.032,]
+datamerged <- datamerged[datamerged$Ref!="T25_B4_Az5_B3",]
+
+
+
+#Data Respiro 
+datamerged_respiro <- datamerged[datamerged$r2 >= 0.85, ]
+dim(datamerged_respiro)
+datamerged_respiro <- datamerged_respiro[datamerged_respiro$Slope <= 0, ]
+dim(datamerged_respiro)
+datamerged_respiro <- datamerged_respiro[!is.na(datamerged_respiro$Slope),]
+
+
+#Transform concentration of oxygen -> consomation of oxygen
+datamerged_respiro$Slope_Pos <- -datamerged_respiro$Slope
+
+
+
+##### HERE ISSUE 
+cols_needed <- c("Slope_Pos", "TempExpNum", "Mass_Ind", "Pop")
+datamerged_respiro_clean <- datamerged_respiro[complete.cases(datamerged_respiro[, cols_needed]), ]
+
+
+
+
+#NUMBER OF REPLICATES PER POP 
+#Mean per treatment
+mean(tapply(datamerged$Mass_Ind,list(datamerged$TempExpNum, datamerged$Pop), length))
+
+#Mean of the total number of individuals per pop
+mean(tapply(datamerged$Mass_Ind,datamerged$Pop, sum, na.rm=TRUE))
+
+#Mean of the total number of individuals per pop
+mean(tapply(data_decompo_clean$InWeight,data_decompo_clean$Pop, sum, na.rm=TRUE), na.rm=TRUE)
+mean(tapply(data_decompo_clean$InWeight,data_decompo_clean$Pop, sum, na.rm=TRUE), na.rm=TRUE)
+
+mean(tapply(data_decompo_clean$InWeight,
+            list(data_decompo_clean$TempExpNum, data_decompo_clean$Pop), length))
+#Par pop : 9 groupes 
+
+``` 
+
+
+
+# FIGURE
+## Figure Mass_Ind
+```{r }
+
+head(datamerged)
+ggplot(data = datamerged) + 
+  geom_boxplot(aes(y = Mass_Ind, x = TempExp, 
+                   group = interaction(TempExp,Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop))) +
+  theme_LO_sobre
+
+
+
+
+ggplot(data = datamerged) + 
+  geom_boxplot(aes(y = Mass_Ind, x = interaction(Tpop,Predpop), 
+                   group = interaction(Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop))) +
+  guides(colour = "none", 
+         fill = "none") + 
+    xlab("Experimental history") + 
+  theme_LO_sobre
+
+
+ggplot(data = datamerged) + 
+  geom_jitter(aes(y = Mass_Ind, x = interaction(Tpop,Predpop), 
+                   group = interaction(Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop))) +
+  guides(colour = "none", 
+         fill = "none") + 
+    xlab("Experimental history") + 
+  theme_LO_sobre
+
+
+# ggplot(data = datamerged) + 
+#   add_phylopic(x = 2, y = 1, img = img, alpha = 1, ysize = 0.05) + 
+#   theme_LO_sobre
+
+
+
+library(rphylopic)
+uuid <- get_uuid(name = "Phoxinus phoxinus", n = 1)
+img <- get_phylopic(uuid = uuid)
+#View(datamerged)
+
+plot_mass <- ggplot(data = datamerged) + 
+  facet_wrap(~ Tpop, labeller = labeller(Tpop = 
+                                           c("Ambiant" = "Ambient",
+                                        "Warm" = "Warm"))) +
+  add_phylopic(x = 2, y = 4.8, img = img, alpha = 1, ysize = 0.3) +
+  geom_boxplot(aes(y = Mass_Ind, x = Predpop, 
+                   group = interaction(Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop)), outliers = FALSE) +
+    geom_jitter(aes(y = Mass_Ind, x = Predpop, 
+                   group = interaction(Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop),
+                   shape = interaction(Tpop,Predpop)), 
+                size = 0.8, alpha = 0.4, width = 0.35) +
+  scale_x_discrete(labels = c("Ctrl" = "Control", 
+                              "Pred" = "Predator", 
+                              "Ctrl" = "Control", 
+                              "Pred" = "Predator")) +
+  guides(colour = "none", 
+         fill = "none",
+         shape = "none") + 
+    xlab("Evolutionary conditions") + 
+    ylab("Body mass") + 
+  scale_shape_manual(values = c(16,16,17,17)) +  
+  scale_color_manual(values = c("#92c5de","#f4a582","#0571b0","#ca0020")) +
+  theme_LO_sobre + 
+  theme(strip.background = element_rect(fill = "white", 
+                                        colour = "grey10", size = 0.4),
+        strip.text = element_text(size = 10, face = "bold", colour = "black"))
+plot_mass
+
+
+
+plot_size <- ggplot(data = datamerged) + 
+  facet_wrap(~ Tpop, labeller = labeller(Tpop = 
+                                           c("Ambiant" = "Ambient",
+                                        "Warm" = "Warm"))) +
+  add_phylopic(x = 2, y = 0.2, img = img, alpha = 1, 
+               ysize = 0.009) +
+  geom_boxplot(aes(y = Length, x = Predpop, 
+                   group = interaction(Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop)), outliers = FALSE) +
+    geom_jitter(aes(y = Length, x = Predpop, 
+                   group = interaction(Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop),
+                   shape = interaction(Tpop,Predpop)), 
+                size = 0.8, alpha = 0.4, width = 0.35) +
+  scale_x_discrete(labels = c("Ctrl" = "Control", 
+                              "Pred" = "Predator", 
+                              "Ctrl" = "Control", 
+                              "Pred" = "Predator")) +
+  guides(colour = "none", 
+         fill = "none",
+         shape = "none") + 
+    xlab("Evolutionary conditions") + 
+    ylab("Body size") + 
+  scale_shape_manual(values = c(16,16,17,17)) +  
+  scale_color_manual(values = c("#92c5de","#f4a582","#0571b0","#ca0020")) +
+  theme_LO_sobre + 
+  theme(strip.background = element_rect(fill = "white", 
+                                        colour = "grey10", size = 0.4),
+        strip.text = element_text(size = 10, face = "bold", colour = "black"))
+plot_size
+# cowplot::save_plot("Plot_Mass_withratioEvolHistory.pdf",
+#                    plot_mass, base_height = 9/cm(1),
+#                    base_width = 12/cm(1), dpi = 610)
+# 
+
+
+
+PLOT_ALL2 <- cowplot::ggdraw() + 
+  cowplot::draw_plot(plot_mass + guides(col="none", fill="none", shape="none"), 
+            x = 0.01, y = 0, width = 0.5, height = 0.98) + 
+  cowplot::draw_plot(plot_size , 
+            x = 0.5, y = 0, width = 0.5, height = 0.98) + 
+  cowplot::draw_plot_label(c("A", 
+                             "B"),   
+                  x = c(0.03,0.53), 
+                  y = c(1, 1), 
+                  hjust = c(-0.25, -0.25), 
+                  vjust = c(1.5, 1.5),
+                  size = 16) 
+ PLOT_ALL2
+
+ #head(datamerged[order(datamerged$Length), ], 5)
+
+ 
+# cowplot::save_plot("Plot_Fig3_Length_Mass.pdf",
+#                    PLOT_ALL2, base_height = 9/cm(1),
+#                    base_width = 20/cm(1), dpi = 610)
+
+``` 
+
+
+
+
+
+
+
+## Figure Respiro
+```{r }
+
+ggplot(data = datamerged) + 
+  geom_boxplot(aes(y = Slope, x = TempExp, 
+                   group = interaction(TempExp,Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop))) +
+  theme_LO_sobre
+
+plot_rawdata <- ggplot(data = datamerged) + 
+  geom_boxplot(aes(y = Slope_Corrected, x = TempExp, 
+                   group = interaction(TempExp,Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop)), outlier.colour = "white") +
+  geom_jitter(aes(y = Slope_Corrected, x = TempExp, 
+                   group = interaction(TempExp,Tpop,Predpop), 
+                   col = interaction(Tpop,Predpop)), alpha = 0.8 , size = 0.5) +
+  theme_LO_sobre
+
+
+# plot_rawdata <- ggplot(data = datamerged) + 
+#   geom_histogram(aes(x = Slope_Corrected)) +
+#   theme_LO_sobre
+
+
+## OUTLIER EMMA 
+# Calculer l'IQR du jeu de données
+q1 <- quantile(datamerged$Slope_Corrected, 0.25)
+q3 <- quantile(datamerged$Slope_Corrected, 0.75)
+iqr <- q3 - q1
+# Définir la plage de valeurs acceptables
+lower <- q1 - 1.5 * iqr
+upper <- q3 + 1.5 * iqr
+
+plot_rawdata + 
+  geom_hline(yintercept = lower) + 
+  geom_hline(yintercept = upper) 
+
+
+ggplot(data = datamerged) +
+  geom_smooth(aes(y = Slope, x = TempExpNum,
+                   col = interaction(Tpop,Predpop)), size = 0.5) +
+  theme_LO_sobre
+
+
+
+ggplot(data = datamerged) +
+  geom_point(aes(y = Slope, x = Length,
+                   col = interaction(Tpop,Predpop)), size = 0.5) +
+  theme_LO_sobre
+
+
+
+ggplot(data = datamerged) +
+  geom_point(aes(y = Slope, x = Mass_Ind,
+                   col = interaction(Tpop,Predpop)), size = 0.5) +
+  theme_LO_sobre
+
+
+plot_length <- ggplot(data = datamerged) +
+  geom_point(aes(y = Slope, x = Length,
+                   col = TempExp), size = 0.5) +
+  theme_LO_sobre
+plot_length
+
+plot_mass <- ggplot(data = datamerged) +
+  geom_point(aes(y = Slope, x = Mass_Ind,
+                   col = TempExp), size = 0.5) +
+  theme_LO_sobre
+plot_mass
+
+
+
+
+
+plot_length2 <- ggplot(data = datamerged) +
+  geom_point(aes(y = Slope, x = Length,
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+             size = 1, alpha = 0.8) +
+    scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  theme_LO_sobre
+plot_length2
+
+plot_mass2 <- ggplot(data = datamerged) +
+  geom_point(aes(y = Slope, x = Mass_Ind,
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+             size = 1, alpha = 0.8) +
+    scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  theme_LO_sobre
+plot_mass2
+
+
+
+
+
+
+
+
+
+
+
+
+
+PLOT_ALL <- cowplot::ggdraw() + 
+  cowplot::draw_plot(plot_length + guides(col="none"), 
+            x = 0.01, y = 0, width = 0.4, height = 0.98) + 
+  cowplot::draw_plot(plot_mass , 
+            x = 0.43, y = 0, width = 0.58, height = 0.98) + 
+  cowplot::draw_plot_label(c("A", 
+                             "B"),   
+                  x = c(0.01,0.43), 
+                  y = c(1, 1), 
+                  hjust = c(-0.25, -0.25), 
+                  vjust = c(1.5, 1.5),
+                  size = 16) 
+ PLOT_ALL
+
+ 
+ 
+PLOT_ALL2 <- cowplot::ggdraw() + 
+  cowplot::draw_plot(plot_length2 + guides(col="none", fill="none", shape="none"), 
+            x = 0.01, y = 0, width = 0.4, height = 0.98) + 
+  cowplot::draw_plot(plot_mass2 , 
+            x = 0.4, y = 0, width = 0.6, height = 0.98) + 
+  cowplot::draw_plot_label(c("A", 
+                             "B"),   
+                  x = c(0.01,0.43), 
+                  y = c(1, 1), 
+                  hjust = c(-0.25, -0.25), 
+                  vjust = c(1.5, 1.5),
+                  size = 16) 
+ PLOT_ALL2
+
+ 
+# cowplot::save_plot("Plot_Correlation_Respiro_vs_SizeMass_ColTemp.pdf",
+#                    PLOT_ALL, base_height = 9/cm(1),
+#                    base_width = 20/cm(1), dpi = 610)
+# cowplot::save_plot("Plot_Correlation_Respiro_vs_SizeMass_ColExp.pdf",
+#                    PLOT_ALL2, base_height = 9/cm(1),
+#                    base_width = 20/cm(1), dpi = 610)
+#  
+ 
+ 
+ 
+ 
+ 
+ ### IMPORTANT ONE
+ 
+ 
+plot_mass2 <- ggplot(data = datamerged_respiro_clean) +
+  facet_wrap( ~ TempExp, nrow = 2) +
+  geom_point(aes(y = log(Slope_Pos), x = log(Mass_Ind),
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+             size = 1, alpha = 0.8) +
+    scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  theme_LO_sobre
+plot_mass2
+
+
+cowplot::save_plot("Plot_LogSlope_LogMass_Temp.pdf",
+                   plot_mass2, base_height = 12/cm(1),
+                   base_width = 20/cm(1), dpi = 610)
+#  
+
+``` 
+
+
+
+## Figure Decompo
+```{r }
+PLOT_DECOMPO <- ggplot(data = data_decompo_clean_withcontrol) + 
+  geom_boxplot(aes(y = Deg_Rate, x = TempExp, 
+                   col = EvolHistory)) +
+  scale_color_manual(name = "Evolution history",
+                    labels=c("C_C"="Control",
+                             "Ctrl_Ambiant" = "Ambient x NoPred" ,
+                             "Pred_Ambiant" = "Ambient x Pred" ,
+                              "Ctrl_Warm" = "Warm x NoPred",
+                             "Pred_Warm" = "Warm x Pred" ),
+                    values = c("Black","#92c5de","#f4a582","#0571b0","#ca0020")) +
+  ylab("Decomposition rate") + 
+  xlab("Experimental temperature") + 
+  ylim(0.05,0.5) + 
+  theme_LO_sobre
+PLOT_DECOMPO
+
+
+PLOT_DECOMPO2 <- ggplot(data = data_decompo_clean) + 
+  geom_boxplot(aes(y = Deg_Rate_Norm, x = TempExp, 
+                   col = EvolHistory)) +
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl_Ambiant" = "Ambient x NoPred" ,
+                             "Pred_Ambiant" = "Ambient x Pred" ,
+                              "Ctrl_Warm" = "Warm x NoPred",
+                             "Pred_Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#f4a582","#0571b0","#ca0020")) +
+  ylab("Decomposition rate - Control Rate") + 
+  xlab("Experimental temperature") + 
+    ylim(0.05,0.5) + 
+theme_LO_sobre
+PLOT_DECOMPO2
+
+
+PLOT_ALL2 <- cowplot::ggdraw() + 
+  cowplot::draw_plot(PLOT_DECOMPO + guides(col="none", fill="none", shape="none"), 
+            x = 0.01, y = 0, width = 0.4, height = 0.98) + 
+  cowplot::draw_plot(PLOT_DECOMPO2 , 
+            x = 0.4, y = 0, width = 0.6, height = 0.98) + 
+  cowplot::draw_plot_label(c("A", 
+                             "B"),   
+                  x = c(0.01,0.4), 
+                  y = c(1, 1), 
+                  hjust = c(-0.25, -0.25), 
+                  vjust = c(1.5, 1.5),
+                  size = 16) 
+ PLOT_ALL2
+
+# cowplot::save_plot("Plot_Decompo.pdf",
+#                    PLOT_ALL2, base_height = 9/cm(1),
+#                    base_width = 20/cm(1), dpi = 610)
+
+
+``` 
+
+
+
+
+# 1. ANALYSIS VARIABILITY
+## Length
+```{r }
+
+head(datamerged)
+hist(datamerged$Length)
+mod0 <- lmer(Length ~ Tpop:Predpop + Tpop + Predpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+
+#hist(resid(mod0))
+mod1 <- lmer(Length ~ Tpop + Predpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+
+anova(mod0,mod1,test="Chisq") #Remove Interaction
+
+mod2 <- lmer(Length ~ Predpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+mod3 <- lmer(Length ~ Tpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+anova(mod1,mod2,test="Chisq") #Remove Predpop
+anova(mod1,mod3,test="Chisq") #Remove Tpop
+
+modnull <- lmer(Length ~ 1 + (1|Pop), data = datamerged, 
+      REML=FALSE) 
+anova(modnull,mod2,test="Chisq") #Remove Predpop
+anova(modnull,mod3,test="Chisq") #Remove Tpop
+
+
+### MuMIn::r.squaredGLMM(modbest)
+#Marginal R²: Variance explained by the fixed effect(s) only.
+#Conditional R²: Variance explained by the entire model (fixed + random effects).
+### r2glmm::r2beta(modbest, partial = TRUE)
+#1.6% of the variance in Length is explained by TempExpNum (fixed effect).
+#0% of the variance is additionally explained by the random effect Pop.
+##summary(modbest)
+
+tapply(datamerged$Length, datamerged$Pop, length)
+
+# ####################################
+# ############################ PREDICT 
+# ####################################
+# modbest <- lmer(Length ~ TempExpNum + (1|Pop), 
+#                 data = datamerged, REML=TRUE) 
+# 
+# anova(modbest)
+# 
+# #dat_predict_length <- expand.grid(TempExpNum=values(datamerged$TempExpNum))
+# dat_predict_length <- data.frame(TempExpNum=seq(min(datamerged$TempExpNum), 
+#                                                 max(datamerged$TempExpNum), 0.1))
+# 
+# 
+# #Predict
+# dat_predict_length$predict <- predict(modbest, type = "response",  
+#                                   re.form = NA,
+#                                   newdata = dat_predict_length)
+# 
+# #Confidence interval
+# bb <- lme4::bootMer(modbest,
+#               FUN=function(x)predict(x, 
+#                                      newdata = dat_predict_length,
+#                                      re.form=NA),
+#               nsim=5000)
+# 
+# # Take quantiles of predictions from bootstrap replicates.
+# # These represent the confidence interval of the mean at any value of Time.
+# dat_predict_length$CI_lower <- apply(bb$t, 2, quantile, 0.025)
+# dat_predict_length$CI_upper <- apply(bb$t, 2, quantile, 0.975)
+# 
+# 
+# ####################################
+# ############################ PLOT 
+# ####################################
+# 
+# PLOT_Length_predict <- ggplot(data = dat_predict_length,
+#         aes(x = TempExpNum, y = predict)) + 
+#   ggplot2::geom_ribbon(data = dat_predict_length, 
+#                        aes(ymin = CI_lower, 
+#                            ymax = CI_upper, 
+#                            x = TempExpNum), 
+#                        alpha = 0.1, size = 0.1) + 
+#   geom_jitter(data = datamerged, 
+#                        aes(x = TempExpNum, y = Length, 
+#                            color = interaction(Predpop,Tpop), 
+#                            shape = interaction(Predpop,Tpop)), 
+#                        alpha = 0.8, size = 0.8) + 
+#   geom_line(data = dat_predict_length,
+#             aes(x = TempExpNum, 
+#                 y = predict),
+#             size = 1.5) + 
+#   scale_shape_manual(name = "Evolution history",
+#                     labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#                              "Pred.Ambiant" = "Ambient x Pred" ,
+#                               "Ctrl.Warm" = "Warm x NoPred",
+#                              "Pred.Warm" = "Warm x Pred" ),
+#                     values = c(16,17,16,17)) +  
+#   scale_color_manual(name = "Evolution history",
+#                     labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#                              "Pred.Ambiant" = "Ambient x Pred" ,
+#                               "Ctrl.Warm" = "Warm x NoPred",
+#                              "Pred.Warm" = "Warm x Pred" ),
+#                     values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+#   guides(shape = guide_legend(override.aes = list(size = 5))) +
+#   xlab("Experimental temperature") +
+#   ylab("Size") +
+#   scale_x_continuous(breaks = datamerged$TempExpNum) +
+#   theme_LO_sobre 
+# PLOT_Length_predict
+# 
+# 
+# # cowplot::save_plot("Plot_predict_size.pdf",
+# #                    PLOT_Length_predict, base_height = 10/cm(1),
+# #                    base_width = 15/cm(1), dpi = 610)
+# 
+
+
+```
+
+
+
+## Body mass
+```{r }
+
+head(datamerged)
+hist(datamerged$Mass_Ind)
+mod0 <- lmer(Mass_Ind ~ Tpop:Predpop + Tpop + Predpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+
+#hist(resid(mod0))
+mod1 <- lmer(Mass_Ind ~ Tpop + Predpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+
+anova(mod0,mod1,test="Chisq") #Remove Interaction
+
+mod2 <- lmer(Mass_Ind ~ Predpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+mod3 <- lmer(Mass_Ind ~ Tpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+anova(mod1,mod2,test="Chisq") #Remove Predpop
+anova(mod1,mod3,test="Chisq") #Remove Tpop
+
+modnull <- lmer(Mass_Ind ~ 1 + (1|Pop), data = datamerged, 
+      REML=FALSE) 
+anova(modnull,mod2,test="Chisq") #Remove Predpop
+anova(modnull,mod3,test="Chisq") #Remove Tpop
+
+
+modnull <- lmer(Mass_Ind ~ 1 + (1|Pop), data = datamerged, 
+      REML=TRUE) 
+summary(modnull)
+### MuMIn::r.squaredGLMM(modbest)
+#Marginal R²: Variance explained by the fixed effect(s) only.
+#Conditional R²: Variance explained by the entire model (fixed + random effects).
+### r2glmm::r2beta(modbest, partial = TRUE)
+#1.6% of the variance in Length is explained by TempExpNum (fixed effect).
+#0% of the variance is additionally explained by the random effect Pop.
+##summary(modbest)
+
+tapply(datamerged$Mass_Ind, datamerged$Tpop, mean, na.rm=TRUE)
+
+# ####################################
+# ############################ PREDICT 
+# ####################################
+# modbest <- lmer(Length ~ TempExpNum + (1|Pop), 
+#                 data = datamerged, REML=TRUE) 
+# 
+# anova(modbest)
+# 
+# #dat_predict_length <- expand.grid(TempExpNum=values(datamerged$TempExpNum))
+# dat_predict_length <- data.frame(TempExpNum=seq(min(datamerged$TempExpNum), 
+#                                                 max(datamerged$TempExpNum), 0.1))
+# 
+# 
+# #Predict
+# dat_predict_length$predict <- predict(modbest, type = "response",  
+#                                   re.form = NA,
+#                                   newdata = dat_predict_length)
+# 
+# #Confidence interval
+# bb <- lme4::bootMer(modbest,
+#               FUN=function(x)predict(x, 
+#                                      newdata = dat_predict_length,
+#                                      re.form=NA),
+#               nsim=5000)
+# 
+# # Take quantiles of predictions from bootstrap replicates.
+# # These represent the confidence interval of the mean at any value of Time.
+# dat_predict_length$CI_lower <- apply(bb$t, 2, quantile, 0.025)
+# dat_predict_length$CI_upper <- apply(bb$t, 2, quantile, 0.975)
+# 
+# 
+# ####################################
+# ############################ PLOT 
+# ####################################
+# 
+# PLOT_Length_predict <- ggplot(data = dat_predict_length,
+#         aes(x = TempExpNum, y = predict)) + 
+#   ggplot2::geom_ribbon(data = dat_predict_length, 
+#                        aes(ymin = CI_lower, 
+#                            ymax = CI_upper, 
+#                            x = TempExpNum), 
+#                        alpha = 0.1, size = 0.1) + 
+#   geom_jitter(data = datamerged, 
+#                        aes(x = TempExpNum, y = Length, 
+#                            color = interaction(Predpop,Tpop), 
+#                            shape = interaction(Predpop,Tpop)), 
+#                        alpha = 0.8, size = 0.8) + 
+#   geom_line(data = dat_predict_length,
+#             aes(x = TempExpNum, 
+#                 y = predict),
+#             size = 1.5) + 
+#   scale_shape_manual(name = "Evolution history",
+#                     labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#                              "Pred.Ambiant" = "Ambient x Pred" ,
+#                               "Ctrl.Warm" = "Warm x NoPred",
+#                              "Pred.Warm" = "Warm x Pred" ),
+#                     values = c(16,17,16,17)) +  
+#   scale_color_manual(name = "Evolution history",
+#                     labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#                              "Pred.Ambiant" = "Ambient x Pred" ,
+#                               "Ctrl.Warm" = "Warm x NoPred",
+#                              "Pred.Warm" = "Warm x Pred" ),
+#                     values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+#   guides(shape = guide_legend(override.aes = list(size = 5))) +
+#   xlab("Experimental temperature") +
+#   ylab("Size") +
+#   scale_x_continuous(breaks = datamerged$TempExpNum) +
+#   theme_LO_sobre 
+# PLOT_Length_predict
+# 
+# 
+# # cowplot::save_plot("Plot_predict_size.pdf",
+# #                    PLOT_Length_predict, base_height = 10/cm(1),
+# #                    base_width = 15/cm(1), dpi = 610)
+# 
+
+
+```
+
+
+
+## Respiro
+### AIC best model
+```{r }
+plot_rawdata <- ggplot() + 
+  geom_jitter(data = datamerged_respiro, 
+                       aes(x = TempExpNum, y = log(Slope_Pos), 
+                           group = interaction(Predpop,Tpop),
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+                       alpha = 0.8, size = 0.8) + 
+  scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Experimental temperature") +
+  ylab("Log(Slope Respiro)") +
+  scale_x_continuous(breaks = datamerged$TempExpNum) +
+  theme_LO_sobre 
+plot_rawdata
+
+
+##### HERE ISSUE 
+cols_needed <- c("Slope_Pos", "TempExpNum", "Mass_Ind", "Pop")
+datamerged_respiro_clean <- datamerged_respiro[complete.cases(datamerged_respiro[, cols_needed]), ]
+
+
+
+
+
+
+
+#Type of mod
+ModSquare <- lmer(log(Slope_Pos) ~ TempExpNum + TempExpNumSquare + log(Mass_Ind) +  (1|Pop),
+     data = datamerged_respiro_clean, REML=FALSE)
+
+ModLinear <- lmer(log(Slope_Pos) ~ TempExpNum + log(Mass_Ind) + (1|Pop),
+     data = datamerged_respiro_clean, REML=FALSE)
+
+ModHetero <-  nlme::lme(fixed = log(Slope_Pos) ~ TempExpNum + log(Mass_Ind)  ,
+  random = ~1 | Pop, weights = varPower(form = ~ TempExpNum), 
+  data = datamerged_respiro_clean, method = "ML") 
+
+ModSpine <- nlme::lme(log(Slope_Pos) ~  ns(TempExpNum, 3) + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum), 
+  data = datamerged_respiro_clean, method = "ML")
+
+ModGam <- mgcv::gam(log(Slope_Pos) ~  s(TempExpNum, k=5) + log(Mass_Ind) +
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_respiro_clean)
+
+ModNull <- lm(log(Slope_Pos) ~ 1,
+     data = datamerged_respiro_clean)
+
+AIC(ModLinear,ModHetero,ModSpine,ModSquare, ModGam, ModNull)
+
+#For predictions
+ModGam <- mgcv::gam(log(Slope_Pos) ~  s(TempExpNum, k=5) + #log(Mass_Ind) +
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_respiro_clean)
+
+
+
+########## ADD PREDICTIONS
+
+#Make prediction grid
+newdat <- data.frame(TempExpNum = seq(min(datamerged$TempExpNum),
+                                      max(datamerged$TempExpNum),
+                                      length.out = 100), 
+                     Mass_Ind = mean(datamerged_respiro_clean$Mass_Ind))
+newdat$TempExpNumSquare <- newdat$TempExpNum*newdat$TempExpNum
+#Get predictions
+newdat$Linear <- predict(ModLinear, newdata = newdat, re.form = NA)
+newdat$Square <- predict(ModSquare, newdata = newdat, re.form = NA)
+newdat$Hetero <- predict(ModHetero, newdata = newdat, level = 0)
+newdat$Spine  <- predict(ModSpine,  newdata = newdat, level = 0)
+newdat$Null  <- predict(ModNull,  newdata = newdat, level = 0)
+
+predictGAM <- tidymv::get_gam_predictions(model = ModGam,
+                                       series = TempExpNum,
+                                       #exclude_terms = 'log(Mass_Ind)',
+                                       exclude_random = TRUE)
+predictGAM$Model <- "Gamm"
+predictGAM$Fit <- predictGAM$`log(Slope_Pos)`
+
+# 3. Reshape for ggplot
+pred_long <- reshape(newdat,
+  varying = names(newdat)[-1],   # all columns except TempExpNum
+  v.names = "Fit",
+  timevar = "Model",
+  times = names(newdat)[-1],
+  direction = "long")
+
+
+pred_long <- pred_long[pred_long$Model!="Mass_Ind",]
+pred_long <- pred_long[pred_long$Model!="TempExpNumSquare",]
+
+pred_long <- rbind(pred_long[,c(1,2,3)],
+      predictGAM[,c(1,8,9)])
+
+
+
+# 4. Add lines to your existing plot
+plot_allmodels <- plot_rawdata +
+  facet_wrap(~ Model, nrow = 1) +
+  geom_line(data = pred_long,
+            aes(x = TempExpNum, y = Fit),
+            size = 1.2)
+plot_allmodels
+
+
+
+############# BEST MODEL SPINES 
+
+ModSpine <- nlme::lme(log(Slope_Pos) ~  ns(TempExpNum, 3) ,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum), 
+  data = datamerged_respiro_clean, method = "ML")
+
+
+ModSpineHetero <- nlme::lme(log(Slope_Pos) ~  ns(TempExpNum, 3) ,
+  random = ~1 | Pop,
+  data = datamerged_respiro_clean, method = "ML")
+
+AIC(ModSpineHetero,ModSpine)
+
+
+############# BEST MODEL SPINES with Hetero
+
+# cowplot::save_plot("Plot_All_Models_Respiro.pdf",
+#                    plot_allmodels, base_height = 10/cm(1),
+#                    base_width = 40/cm(1), dpi = 610)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+### Splines Nlmer - USED
+```{r }
+### Non-linear model WITHOUT random effects, using LRT
+
+ModSpine <- nlme::lme(log(Slope_Pos) ~  ns(TempExpNum, 3) + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum), 
+  data = datamerged_respiro_clean, method = "ML")
+
+
+#library(splines)
+
+nlme_model <- lme(
+  log(Slope_Pos) ~ ns(TempExpNum, 3) * Tpop * Predpop + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML"
+)
+
+
+nlme_0 <- lme(
+  log(Slope_Pos)  ~ ns(TempExpNum, 3):Tpop:Predpop + 
+    ns(TempExpNum, 3):Tpop + ns(TempExpNum, 3):Predpop + Tpop:Predpop + 
+    ns(TempExpNum, 3) + Tpop + Predpop + log(Mass_Ind),
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged_respiro_clean,
+  method = "ML"
+)
+nlme_1 <- lme(
+  log(Slope_Pos)  ~  ns(TempExpNum, 3):Tpop + ns(TempExpNum, 3):Predpop + Tpop:Predpop + 
+    ns(TempExpNum, 3) + Tpop + Predpop + log(Mass_Ind) ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged_respiro_clean,
+  method = "ML")
+
+
+anova(nlme_1,nlme_0) # remove interaction 
+
+
+nlme_4 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3):Predpop + Tpop:Predpop + 
+    ns(TempExpNum, 3) + Tpop + Predpop + log(Mass_Ind),
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged_respiro_clean,
+  method = "ML")
+
+nlme_2 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3):Tpop  + Tpop:Predpop + 
+    ns(TempExpNum, 3) + Tpop + Predpop + log(Mass_Ind) ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged_respiro_clean,
+  method = "ML")
+
+nlme_3 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3):Tpop + ns(TempExpNum, 3):Predpop  + 
+    ns(TempExpNum, 3) + Tpop + Predpop + log(Mass_Ind) ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged_respiro_clean,
+  method = "ML")
+anova(nlme_1,nlme_2) # remove interaction 
+anova(nlme_1,nlme_3) # remove interaction 
+anova(nlme_1,nlme_4) # remove interaction 
+
+
+
+nlme_4 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + Tpop + Predpop + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+
+nlme_5 <- lme(log(Slope_Pos)  ~ Tpop + Predpop + log(Mass_Ind) ,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+
+nlme_6 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + Predpop + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+
+nlme_7 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + Tpop + log(Mass_Ind),
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged_respiro_clean,
+  method = "ML")
+anova(nlme_5,nlme_4) # keep ns(TempExpNum, 3) 
+anova(nlme_6,nlme_4) # remove Tpop 
+anova(nlme_7,nlme_4) # remove Predpop 
+
+
+
+nlme_7 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+
+nlme_8 <- lme(log(Slope_Pos)  ~  log(Mass_Ind) ,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum) ,  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+anova(nlme_7,nlme_8, test = "Chisq") # keep ns(TempExpNum, 3) 
+
+#Check covariate Mass_ind
+nlme_8 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3)  ,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum) ,  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+anova(nlme_7,nlme_8) # keep log(Mass_Ind)
+
+
+#Double check heteroscedasticity
+nlme_best <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + log(Mass_Ind) ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged_respiro_clean,
+  method = "ML")
+nlme_best2 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + log(Mass_Ind),
+  random = ~1 | Pop,
+data = datamerged_respiro_clean,
+  method = "ML")
+anova(nlme_best2,nlme_best) # keep varPower(form = ~ TempExpNum)
+
+
+
+### Doublecheck spines 
+nlme_9 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+nlme_10 <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 2) + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "ML")
+anova(nlme_9,nlme_10) # keep log(Mass_Ind)
+
+
+nlme_best <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "REML")
+
+summary(nlme_best)
+
+var(resid(nlme_best))
+sqrt(var(resid(nlme_best)))
+
+#####################################################################
+##################### PREDICTIONS ###################################
+
+### BEST MODEL
+nlme_best <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3)  + log(Mass_Ind),
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged_respiro_clean,
+  method = "REML")
+
+#Slope_Corrected_ij=β_0+β_1B_1(TempExpNum_ij)+β_2B_2(TempExpNum_ij)+β_3B_3(TempExpNum_ij)+u_j+ε_ij 
+#B_1, B_2, B_3 = fonctions de base du spline naturel générées par ns(TempExpNum, 3)
+#β_0,β_1,β_2,β_3= coefficients fixes (estimés par lme)
+#u_j∼N(0,σ_u2)u_j \sim N(0, \sigma^2_u)u_j∼N(0,σ_u2) = effet aléatoire de la population Pop
+#ε_ij = erreur résiduelle avec variance qui dépend de TempExpNum (grâce à varPower)
+
+summary(nlme_best)
+var(residuals(nlme_best))
+
+
+#Predict dataset
+dat_predict_respiro <- data.frame(TempExpNum = seq(min(datamerged_respiro_clean$TempExpNum),
+                                      max(datamerged_respiro_clean$TempExpNum),
+                                      length.out = 10), 
+                     Mass_Ind = mean(datamerged_respiro_clean$Mass_Ind))
+
+# Buildd the design matrix
+X <- model.matrix(formula(nlme_best)[-2], dat_predict_respiro)
+
+
+#extract fixed effects
+fixef <- fixed.effects(nlme_best)
+fixed_pred <- as.vector(X %*% fixef)
+
+#Random effects
+sd_pop <- as.numeric(VarCorr(nlme_best)[1, "StdDev"])
+sd_resid <- nlme_best$sigma
+
+# Number of simulations
+nsim <- 5000
+
+
+
+pred_boot <- matrix(NA, nrow = nrow(dat_predict_respiro), ncol = nsim)
+
+pops <- unique(datamerged_respiro_clean$Pop)
+
+for(i in 1:nsim){
+  # residuals (heteroscedasticity is modeled via varPower, ideally we should scale resid by fitted values, but here we keep it simple)
+  resid_sim <- rnorm(nrow(dat_predict_respiro), 0, sd_resid)
+  
+  # total prediction = fixed + random + residual
+  lp <- fixed_pred  + resid_sim
+  pred_boot[, i] <- lp
+}
+
+# 95% CI
+# dat_predict_respiro$CI_lower <- apply(pred_boot, 1, quantile, 0.025)
+# dat_predict_respiro$CI_upper <- apply(pred_boot, 1, quantile, 0.975)
+
+
+
+## Estimate 
+dat_predict_respiro$predict <- predict(nlme_best, newdata = dat_predict_respiro, level = 0)
+dat_predict_respiro$CI_lower <- apply(pred_boot, 1, quantile, 0.025)
+dat_predict_respiro$CI_upper <- apply(pred_boot, 1, quantile, 0.975)
+
+dat_predict_respiro[which.max(dat_predict_respiro$predict), ]
+dat_predict_respiro[which.min(dat_predict_respiro$predict), ]
+
+####################################
+############################ PLOT 
+####################################
+
+
+plot_predict_respiro <- ggplot(data = dat_predict_respiro,
+        aes(x = TempExpNum, y = predict)) + 
+  ggplot2::geom_ribbon(data = dat_predict_respiro, 
+                       aes(ymin = CI_lower, 
+                           ymax = CI_upper, 
+                           x = TempExpNum), 
+                       alpha = 0.1, size = 0.1) + 
+  geom_jitter(data = datamerged_respiro_clean, 
+                       aes(x = TempExpNum, y = log(Slope_Pos), 
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+                       alpha = 0.8, size = 0.8) + 
+  geom_line(data = dat_predict_respiro,
+            aes(x = TempExpNum, 
+                y = predict),
+            size = 1.5) + 
+  scale_shape_manual(name = "Evolutionary conditions",
+                    labels=c("Ctrl.Ambiant" = "Ambient x Control" ,
+                             "Pred.Ambiant" = "Ambient x Predator" ,
+                              "Ctrl.Warm" = "Warm x Control",
+                             "Pred.Warm" = "Warm x Predator" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolutionary conditions",
+                    labels=c("Ctrl.Ambiant" = "Ambient x Control" ,
+                             "Pred.Ambiant" = "Ambient x Predator" ,
+                              "Ctrl.Warm" = "Warm x Control",
+                             "Pred.Warm" = "Warm x Predator" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+ scale_fill_manual(name = "Evolutionary conditions",
+                    labels=c("Ctrl.Ambiant" = "Ambient x Control" ,
+                             "Pred.Ambiant" = "Ambient x Predator" ,
+                              "Ctrl.Warm" = "Warm x Control",
+                             "Pred.Warm" = "Warm x Predator" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Test temperature") +
+  ylab("Metabolic rate") +
+  scale_x_continuous(breaks = datamerged$TempExpNum) +
+  theme_LO_sobre 
+plot_predict_respiro
+
+# # 
+cowplot::save_plot("Plot_Fig2_predict_respiro_nLMER.pdf",
+                   plot_predict_respiro, base_height = 10/cm(1),
+                   base_width = 15/cm(1), dpi = 610)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+### lmer - NOT USED
+```{r }
+
+hist(datamerged$Slope_Corrected)
+
+mod0 <- lmer(Slope_Corrected ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+
+#hist(resid(mod0))
+mod1 <- lmer(Slope_Corrected ~ Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop  +  (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+anova(mod0,mod1,test="Chisq") #Remove Interaction triple
+
+mod2 <- lmer(Slope_Corrected ~ Tpop:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop  + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+mod3 <- lmer(Slope_Corrected ~ Tpop:Predpop + TempExpNum:Predpop + 
+     TempExpNum + Tpop + Predpop  + (1|Pop), data = datamerged, 
+      REML=FALSE) #To compare model
+anova(mod1,mod2,test="Chisq") #Remove Interaction with TempExpNum
+anova(mod1,mod3,test="Chisq") #Remove Interaction with TempExpNum
+
+
+mod4 <- lmer(Slope_Corrected ~ Tpop:Predpop + 
+     TempExpNum + Tpop + Predpop  + (1|Pop), data = datamerged, 
+      REML=FALSE) 
+mod5 <- lmer(Slope_Corrected ~   TempExpNum + Tpop + Predpop  + (1|Pop), 
+             data = datamerged, 
+      REML=FALSE) 
+anova(mod4,mod5,test="Chisq") #Remove Interactionn Tpop Predpop
+
+mod6 <- lmer(Slope_Corrected ~ Tpop + Predpop  +  (1|Pop), 
+             data = datamerged, REML=FALSE) 
+anova(mod5,mod6,test="Chisq") #Keep TempExpNum
+
+mod7 <- lmer(Slope_Corrected ~ TempExpNum + Tpop  + (1|Pop), data = datamerged, 
+      REML=FALSE) 
+anova(mod5,mod7,test="Chisq") #Remove Predpop
+
+mod8 <- lmer(Slope_Corrected ~ TempExpNum  + Predpop   + (1|Pop), data = datamerged, 
+      REML=FALSE) 
+anova(mod4,mod8,test="Chisq") #Remove Tpop
+
+
+
+modbest <- lmer(Slope_Corrected ~ TempExpNum + (1|Pop), data = datamerged, REML=FALSE) 
+
+MuMIn::r.squaredGLMM(modbest)
+#Marginal R²: Variance explained by the fixed effect(s) only.
+#Conditional R²: Variance explained by the entire model (fixed + random effects).
+#r2glmm::r2beta(modbest, partial = TRUE)
+#X% of the variance in Length is explained by TempExpNum (fixed effect).
+#X% of the variance is additionally explained by the random effect Pop.
+summary(modbest)
+
+####################################
+############################ PREDICT 
+####################################
+modbest <- lmer(Slope_Corrected ~ TempExpNum  +  (1|Pop), 
+     data = datamerged, REML=TRUE) 
+
+
+
+anova(modbest)
+summary(modbest)
+
+dat_predict_respiro <- expand.grid(TempExpNum = seq(min(datamerged$TempExpNum),
+                                                  max(datamerged$TempExpNum), 0.1))
+
+dat_predict_respiro$TempExpNumSquare <- dat_predict_respiro$TempExpNum * dat_predict_respiro$TempExpNum
+
+#Predict
+dat_predict_respiro$predict <- predict(modbest, type = "response",  
+                                  re.form = NA,
+                                  newdata = dat_predict_respiro)
+
+#Confidence interval
+bb <- lme4::bootMer(modbest,
+              FUN=function(x)predict(x, 
+                                     newdata = dat_predict_respiro,
+                                     re.form=NA),
+              nsim=500)
+
+# Take quantiles of predictions from bootstrap replicates.
+# These represent the confidence interval of the mean at any value of Time.
+dat_predict_respiro$CI_lower <- apply(bb$t, 2, quantile, 0.025)
+dat_predict_respiro$CI_upper <- apply(bb$t, 2, quantile, 0.975)
+
+
+
+####################################
+############################ PLOT 
+####################################
+
+plot_predict_respiro <- ggplot(data = dat_predict_respiro,
+        aes(x = TempExpNum, y = predict)) + 
+  ggplot2::geom_ribbon(data = dat_predict_respiro, 
+                       aes(ymin = CI_lower, 
+                           ymax = CI_upper, 
+                           x = TempExpNum), 
+                       alpha = 0.1, size = 0.1) + 
+  geom_jitter(data = datamerged, 
+                       aes(x = TempExpNum, y = Slope, 
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+                       alpha = 0.8, size = 0.8) + 
+  geom_line(data = dat_predict_respiro,
+            aes(x = TempExpNum, 
+                y = predict),
+            size = 1.5) + 
+  scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+ scale_fill_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Experimental temperature") +
+  ylab("Slope Respiro") +
+  scale_x_continuous(breaks = datamerged$TempExpNum) +
+  theme_LO_sobre 
+plot_predict_respiro
+
+# 
+# cowplot::save_plot("Plot_predict_respiro_LMER.pdf",
+#                    plot_predict_respiro, base_height = 10/cm(1),
+#                    base_width = 15/cm(1), dpi = 610)
+
+```
+
+
+### Heteroscedasticity nlmer - NOT USED - OLD
+```{r }
+
+mod0_nlme <- lme(
+  fixed = Slope_Corrected ~ TempExpNum * Tpop * Predpop,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML")
+
+
+
+
+##Test variance
+
+## Clean data: remove rows with missing values in relevant columns
+datamerged_clean <- datamerged[complete.cases(datamerged[, 
+  c("Slope_Corrected", "TempExpNum", "Tpop", "Predpop", "Pop")]), ]
+
+## Base model (homoscedastic residuals)
+mod0_homo <- lme(
+  fixed = Slope_Corrected ~ TempExpNum * Tpop * Predpop,
+  random = ~1 | Pop,
+  data   = datamerged_clean,
+  method = "ML"
+)
+
+## Variance grows with TempExpNum (power function)
+mod0_power <- update(mod0_homo,
+  weights = varPower(form = ~ TempExpNum)
+)
+
+## Variance grows with TempExpNum (exponential function)
+mod0_exp <- update(mod0_homo,
+  weights = varExp(form = ~ TempExpNum)
+)
+
+## Variances differ by Tpop
+mod0_ident <- update(mod0_homo,
+  weights = varIdent(form = ~ 1 | Tpop)
+)
+
+## Compare models
+anova(mod0_homo, mod0_power, mod0_exp, mod0_ident)
+
+## Optional: inspect residuals for best model
+plot(mod0_power, resid(., type="pearson") ~ fitted(.), abline=0)
+
+
+
+#hist(resid(mod0))
+
+
+## LRT 
+mod0 <- lme(fixed = Slope_Corrected ~ Tpop:Predpop:TempExpNum + Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + TempExpNum + Tpop + Predpop,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML")
+ 
+ mod1 <- lme(fixed = Slope_Corrected ~ Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + TempExpNum + Tpop + Predpop,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML")
+anova(mod0,mod1) #Remove Interaction triple
+
+
+mod2 <- lme(fixed = Slope_Corrected ~  TempExpNum:Predpop + TempExpNum:Tpop + TempExpNum + Tpop + Predpop,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML")
+mod3 <- lme(fixed = Slope_Corrected ~ Tpop:Predpop + TempExpNum:Tpop + TempExpNum + Tpop + Predpop,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML")
+mod4 <- lme(fixed = Slope_Corrected ~ Tpop:Predpop + TempExpNum:Predpop + TempExpNum + Tpop + Predpop,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML")
+anova(mod1,mod2) #Remove Interaction 
+anova(mod1,mod3) #Remove Interaction 
+anova(mod1,mod4) #Remove Interaction 
+
+
+
+mod5 <- lme(fixed = Slope_Corrected ~ TempExpNum + Tpop + Predpop,
+  random = ~1 | Pop, weights = varPower(form = ~ TempExpNum), data = datamerged, method = "ML")
+anova(mod4,mod5) #Remove Interactionn Tpop Predpop
+
+mod6 <- lme(fixed = Slope_Corrected ~  Tpop + Predpop,
+  random = ~1 | Pop, weights = varPower(form = ~ TempExpNum), data = datamerged, method = "ML")
+anova(mod5,mod6) #Keep TempExpNum
+
+mod7 <- lme(fixed = Slope_Corrected ~ TempExpNum  + Predpop,
+  random = ~1 | Pop, weights = varPower(form = ~ TempExpNum), data = datamerged, method = "ML")
+anova(mod5,mod7) #Remove Predpop
+
+mod8 <- lme(fixed = Slope_Corrected ~ TempExpNum + Tpop ,
+  random = ~1 | Pop, weights = varPower(form = ~ TempExpNum), data = datamerged, method = "ML")
+anova(mod5,mod8) #Remove Tpop
+
+
+
+modbest <- lme(fixed = Slope_Corrected ~ TempExpNum ,
+  random = ~1 | Pop, weights = varPower(form = ~ TempExpNum), data = datamerged, method = "ML") 
+
+MuMIn::r.squaredGLMM(modbest)
+#Marginal R²: Variance explained by the fixed effect(s) only.
+#Conditional R²: Variance explained by the entire model (fixed + random effects).
+#r2glmm::r2beta(modbest, partial = TRUE)
+#X% of the variance in Length is explained by TempExpNum (fixed effect).
+#X% of the variance is additionally explained by the random effect Pop.
+summary(modbest)
+
+####################################
+############################ PREDICT 
+####################################
+modbest <-  lme(fixed = Slope_Corrected ~ TempExpNum ,
+  random = ~1 | Pop, weights = varPower(form = ~ TempExpNum), data = datamerged, method = "REML") 
+
+anova(modbest)
+summary(modbest)
+
+dat_predict_respiro <- expand.grid(TempExpNum = seq(min(datamerged$TempExpNum),
+                                                  max(datamerged$TempExpNum), 1))
+
+#Predict
+dat_predict_respiro$predict <- predict(modbest, 
+                                  newdata = dat_predict_respiro, level = 0)
+
+#Confidence interval
+# Prepare new data for predictions (fixed effect only)
+nsim <- 50000
+pred_boot <- matrix(NA, nrow = nrow(dat_predict_respiro), ncol = nsim)
+fixef <- fixed.effects(modbest)   # fixed effect coefficients
+
+# Random intercept SD
+sd_pop <- as.numeric(VarCorr(modbest)[1, "StdDev"])
+
+# Residual SD (sigma)
+sd_resid <- modbest$sigma
+
+ranef_sd <- c(sd_pop, sd_resid)
+
+
+for(i in 1:nsim){
+  # Sample random intercepts for each Pop
+  pop_re <- rnorm(length(unique(datamerged_clean$Pop)), 0, ranef_sd[1])
+  names(pop_re) <- unique(datamerged_clean$Pop)
+  
+  # Simulate residuals
+  resid_sim <- rnorm(nrow(dat_predict_respiro), 0, ranef_sd[2])
+  
+  # Linear predictor: fixed effects only (no weights)
+  lp <- fixef[1] + fixef[2]*dat_predict_respiro$TempExpNum + resid_sim
+  pred_boot[,i] <- lp
+}
+
+# Confidence intervals
+ci_lower <- apply(pred_boot, 1, quantile, 0.025)
+ci_upper <- apply(pred_boot, 1, quantile, 0.975)
+dat_predict_respiro$CI_lower <- ci_lower
+dat_predict_respiro$CI_upper <- ci_upper
+
+
+
+####################################
+############################ PLOT 
+####################################
+
+View(datamerged)
+
+plot_predict_respiro <- ggplot(data = dat_predict_respiro,
+        aes(x = TempExpNum, y = predict)) + 
+  ggplot2::geom_ribbon(data = dat_predict_respiro, 
+                       aes(ymin = CI_lower, 
+                           ymax = CI_upper, 
+                           x = TempExpNum), 
+                       alpha = 0.1, size = 0.1) + 
+  geom_jitter(data = datamerged, 
+                       aes(x = TempExpNum, y = Slope, 
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+                       alpha = 0.8, size = 0.8) + 
+  geom_line(data = dat_predict_respiro,
+            aes(x = TempExpNum, 
+                y = predict),
+            size = 1.5) + 
+  scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+ scale_fill_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Experimental temperature") +
+  ylab("Slope Respiro") +
+  scale_x_continuous(breaks = datamerged$TempExpNum) +
+  theme_LO_sobre 
+plot_predict_respiro
+
+# 
+# cowplot::save_plot("Plot_predict_respiro_LMER.pdf",
+#                    plot_predict_respiro, base_height = 10/cm(1),
+#                    base_width = 15/cm(1), dpi = 610)
+
+```
+
+
+
+
+### Quadratic nlmer - NOT USED - A finir OLD
+```{r }
+### Non-linear model WITHOUT random effects, using LRT
+mod <- lm(Slope_Corrected ~ TempExpNum*Pop + TempExpNumSquare*Pop, data = datamerged)
+newdat <- expand.grid(TempExpNum = seq(min(datamerged$TempExpNum),
+                                      max(datamerged$TempExpNum),
+                                      length.out = 100), 
+                     Pop = unique(levels(datamerged$Pop)))
+newdat$TempExpNumSquare <- newdat$TempExpNum*newdat$TempExpNum
+newdat$Linear <- predict(mod, newdata = newdat, re.form = NA)
+
+# plot_rawdata + geom_line(data = newdat, 
+#                          aes(x = TempExpNum, y = Linear, group = Pop))
+# 
+
+
+nlme_model <- lme(
+  Slope_Corrected ~ TempExpNumSquare * Tpop * Predpop,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML"
+)
+
+
+nlme_0 <- lme(
+  Slope_Corrected ~ TempExpNumSquare:Tpop:Predpop + 
+   TempExpNumSquare:Tpop + TempExpNumSquare:Predpop + Tpop:Predpop + 
+   TempExpNumSquare + TempExpNumSquare + Tpop + Predpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML"
+)
+nlme_1 <- lme(
+  Slope_Corrected ~  TempExpNumSquare:Tpop + TempExpNumSquare:Predpop + Tpop:Predpop + 
+    TempExpNumSquare + Tpop + Predpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML"
+)
+
+
+anova(nlme_1,nlme_0) # remove interaction 
+
+
+nlme_4 <- lme(
+  Slope_Corrected ~  TempExpNumSquare:Predpop + Tpop:Predpop + 
+    TempExpNumSquare + Tpop + Predpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML"
+)
+nlme_2 <- lme(
+  Slope_Corrected ~ TempExpNumSquare:Tpop  + Tpop:Predpop + 
+    TempExpNumSquare + Tpop + Predpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML"
+)
+nlme_3 <- lme(Slope_Corrected ~  TempExpNumSquare:Tpop + TempExpNumSquare:Predpop  + 
+  TempExpNumSquare + Tpop + Predpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML")
+anova(nlme_1,nlme_2) # remove interaction 
+anova(nlme_1,nlme_3) # remove interaction 
+anova(nlme_1,nlme_4) # remove interaction 
+
+nlme_5 <- lme(Slope_Corrected ~ Tpop + Predpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML")
+
+nlme_6 <- lme(Slope_Corrected ~  TempExpNumSquare + Predpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML")
+
+nlme_7 <- lme(Slope_Corrected ~ TempExpNumSquare + Tpop ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML")
+anova(nlme_5,nlme_4) # keep TempExpNumSquare 
+anova(nlme_6,nlme_4) # remove Tpop 
+anova(nlme_7,nlme_4) # remove Predpop 
+
+
+
+nlme_7 <- lme(Slope_Corrected ~  TempExpNumSquare ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML")
+nlme_8 <- lme(Slope_Corrected ~  1 ,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML")
+anova(nlme_7,nlme_8) # keep TempExpNumSquare
+
+
+
+nlme_best <- lme(Slope_Corrected ~  TempExpNumSquare ,
+  random = ~1 | Pop,
+  weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+  data = datamerged,
+  method = "ML")
+
+summary(nlme_best)
+
+#Check
+nlme_best <- lme(Slope_Corrected ~  TempExpNumSquare,
+  random = ~1 | Pop,
+    weights = varPower(form = ~ TempExpNum),  # variance croît avec TempExpNum
+data = datamerged,
+  method = "ML")
+nlme_best2 <- lme(Slope_Corrected ~  TempExpNumSquare ,
+  random = ~1 | Pop,
+data = datamerged,
+  method = "ML")
+anova(nlme_best2,nlme_best) # keep varPower(form = ~ TempExpNum)
+
+
+
+
+# Number of simulations
+nsim <- 5000  # try smaller first, then increase if it works
+
+# Extract fixed effects
+fixef <- fixed.effects(nlme_best)
+
+# Random + residual SDs
+sd_pop <- as.numeric(VarCorr(nlme_best)[1, "StdDev"])
+sd_resid <- nlme_best$sigma
+
+# Fixed-effect design matrix for prediction dataset
+X <- model.matrix(formula(nlme_best)[-2], dat_predict_respiro) 
+# (-2 drops the response, leaves rhs)
+
+# Compute fixed-effect prediction
+fixed_pred <- as.vector(X %*% fixef)
+
+# Storage for bootstrapped sims
+pred_boot <- matrix(NA, nrow = nrow(dat_predict_respiro), ncol = nsim)
+
+for(i in 1:nsim){
+  # Random intercepts for populations
+  pop_re <- rnorm(length(unique(datamerged$Pop)), 0, sd_pop)
+  names(pop_re) <- unique(datamerged$Pop)
+  
+  resid_sim <- rnorm(nrow(dat_predict_respiro), 0, sd_resid)
+  
+  # Prediction = fixed + random + residual
+  lp <- fixed_pred  + resid_sim
+  pred_boot[, i] <- lp
+}
+
+# 95% CI
+dat_predict_respiro$CI_lower <- apply(pred_boot, 1, quantile, 0.025)
+dat_predict_respiro$CI_upper <- apply(pred_boot, 1, quantile, 0.975)
+
+####################################
+############################ PLOT 
+####################################
+
+
+plot_predict_respiro <- ggplot(data = dat_predict_respiro,
+        aes(x = TempExpNum, y = predict)) + 
+  ggplot2::geom_ribbon(data = dat_predict_respiro, 
+                       aes(ymin = CI_lower, 
+                           ymax = CI_upper, 
+                           x = TempExpNum), 
+                       alpha = 0.1, size = 0.1) + 
+  geom_jitter(data = datamerged, 
+                       aes(x = TempExpNum, y = Slope, 
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+                       alpha = 0.8, size = 0.8) + 
+  geom_line(data = dat_predict_respiro,
+            aes(x = TempExpNum, 
+                y = predict),
+            size = 1.5) + 
+  scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+ scale_fill_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Experimental temperature") +
+  ylab("Respirometry rate") +
+  scale_x_continuous(breaks = datamerged$TempExpNum) +
+  theme_LO_sobre 
+plot_predict_respiro
+
+# 
+# cowplot::save_plot("Plot_predict_respiro_nLMER.pdf",
+#                    plot_predict_respiro, base_height = 10/cm(1),
+#                    base_width = 15/cm(1), dpi = 610)
+
+
+```
+
+
+### Gamm Model of Slope corrected by weight in the dataset - NOT USED  - OLD
+```{r }
+
+####################################
+############################ MODEL GAMM 
+####################################
+
+
+
+## Voir pour un modele GAMM ! 
+m0 <- mgcv::gam(Slope ~ EvolHistory + Mass_Ind + 
+                  s(TempExpNum, k=5) +
+                  s(TempExpNum, by= EvolHistory, k=5) + 
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_subset)
+m1 <- mgcv::gam(Slope ~ EvolHistory + Mass_Ind + 
+                  s(TempExpNum, k=5) +
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_subset)
+
+itsadug::compareML(m0,m1,suggest.report = TRUE) #remove Interaction
+
+
+m2 <- mgcv::gam(Slope ~ Mass_Ind + 
+                  s(TempExpNum, k=5) +
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_subset)
+itsadug::compareML(m1,m2,suggest.report = TRUE) #remove Evolve History
+
+
+m3 <- mgcv::gam(Slope ~ Mass_Ind + TempExpNum + 
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_subset)
+itsadug::compareML(m2,m3,suggest.report = TRUE) #Keep smooth TempExpNum
+
+m4 <- mgcv::gam(Slope ~ s(TempExpNum, k=5) +
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_subset)
+itsadug::compareML(m4,m2,suggest.report = TRUE) #Keep Mass
+
+
+
+m5 <- mgcv::gam(Slope ~ Mass_Ind + 
+                  s(TempExpNum, k=5) , method = 'ML', 
+                data=datamerged_subset)
+itsadug::compareML(m5,m2,suggest.report = TRUE) #Keep Pop random effect
+
+
+
+## Best model: m2 
+mbest <- mgcv::gam(Slope ~ Mass_Ind + 
+                  s(TempExpNum, k=5) +
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_subset)
+
+summary(mbest)
+mgcv::summary.gam(mbest)
+
+mbestpred <- mgcv::gam(Slope ~  s(TempExpNum, k=5) +
+                  s(Pop, bs="re"), method = 'ML', 
+                data=datamerged_subset)
+
+mod_Best_p <- tidymv::get_gam_predictions(model = mbestpred,
+                                       series = TempExpNum,
+                                       exclude_random = TRUE)
+
+# tidymv::plot_smooths(mbestpred, TempExpNum, 
+#                      exclude_random = TRUE)
+
+
+
+    
+
+plot_predict_respiro <- ggplot(data = mod_Best_p,
+        aes(x = TempExpNum, y = Slope)) + 
+  ggplot2::geom_ribbon(data = mod_Best_p, 
+                       aes(ymin = CI_lower, 
+                           ymax = CI_upper, 
+                           x = TempExpNum), 
+                       alpha = 0.1, size = 0.1) + 
+  geom_jitter(data = datamerged_subset, 
+                       aes(x = TempExpNum, y = Slope, 
+                           group = interaction(Predpop,Tpop),
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+                       alpha = 0.8, size = 0.8) + 
+  geom_line(data = mod_Best_p,
+            aes(x = TempExpNum, 
+                y = Slope),
+            size = 1.5) + 
+  scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+ scale_fill_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Experimental temperature") +
+  ylab("Slope Respiro") +
+  scale_x_continuous(breaks = datamerged$TempExpNum) +
+  theme_LO_sobre 
+plot_predict_respiro
+
+# cowplot::save_plot("Plot_predict_respiro_GAMM.pdf",
+#                    plot_predict_respiro, base_height = 10/cm(1),
+#                    base_width = 15/cm(1), dpi = 610)
+
+```
+
+
+## Decompo
+### Raffard reference: -log(Rate) USED
+```{r }
+mod0 <- lmer(Deg_Rate_Raffard ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+
+#hist(resid(mod0))
+mod1 <- lmer(Deg_Rate_Raffard ~ 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+
+anova(mod0,mod1,test="Chisq") #Remove Interaction
+
+mod2 <- lmer(Deg_Rate_Raffard ~ 
+     TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+mod3 <- lmer(Deg_Rate_Raffard ~ 
+     Tpop:Predpop  + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+mod4 <- lmer(Deg_Rate_Raffard ~ 
+     Tpop:Predpop + TempExpNum:Predpop +  
+     TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+anova(mod1,mod2,test="Chisq") #Remove Tpop:Predpop
+anova(mod1,mod4,test="Chisq") #Keep: TempExpNum:Tpop
+anova(mod1,mod3,test="Chisq") #Keep: TempExpNum:Predpop
+
+mod5 <- lmer(Deg_Rate_Raffard ~ TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+mod6 <- lmer(Deg_Rate_Raffard ~ TempExpNum:Predpop + TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+mod7 <- lmer(Deg_Rate_Raffard ~ TempExpNum:Tpop + TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean, 
+      REML=FALSE) #To compare model
+anova(mod5,mod6,test="Chisq") #Keep:TempExpNum:Tpop
+anova(mod5,mod7,test="Chisq") #Keep:TempExpNum:Tpop
+
+
+
+
+
+## BEST MODEL 
+modbest <- lmer(Deg_Rate_Raffard ~  TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop  + (1|Pop), 
+     data = data_decompo_clean) #To compare model
+summary(modbest)
+# Obtain slopes of TempExpNum for all combinations of Predpop and Tpop
+slopes <- emmeans::emtrends(modbest, ~ Predpop + Tpop, var = "TempExpNum")
+summary(slopes)
+
+
+MuMIn::r.squaredGLMM(modbest)
+#Marginal R²: Variance explained by the fixed effect(s) only.
+#Conditional R²: Variance explained by the entire model (fixed + random effects).
+r2glmm::r2beta(modbest, partial = TRUE)
+#1.6% of the variance in Length is explained by TempExpNum (fixed effect).
+#0% of the variance is additionally explained by the random effect Pop.
+summary(modbest)
+
+tapply(data_decompo_clean$Deg_Rate_Raffard, data_decompo_clean$Pop, mean)
+tapply(data_decompo_clean$Deg_Rate_Raffard, data_decompo_clean$EvolHistory, mean)
+
+
+# ####################################
+# ############################ PREDICT 
+# ####################################
+anova(modbest)
+## BEST MODEL 
+modbest <- lmer(Deg_Rate_Raffard ~  TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop  + (1|Pop), 
+     data = data_decompo_clean) #To compare model
+summary(modbest)
+# Obtain slopes of TempExpNum for all combinations of Predpop and Tpop
+slopes <- emmeans::emtrends(modbest, ~ Predpop + Tpop, var = "TempExpNum")
+summary(slopes)
+
+
+
+dat_predict_decompo <-expand.grid(TempExpNum=seq(min(
+  data_decompo_clean$TempExpNum),
+  max(data_decompo_clean$TempExpNum), 1),
+                                   Tpop = unique(data_decompo_clean$Tpop),
+                                   Predpop = unique(data_decompo_clean$Predpop))
+
+
+
+#Predict
+dat_predict_decompo$predict <- predict(modbest, type = "response",
+                                  re.form = NA,
+                                  newdata = dat_predict_decompo)
+
+#Confidence interval
+bb <- lme4::bootMer(modbest,
+              FUN=function(x)predict(x,
+                                     newdata = dat_predict_decompo,
+                                     re.form=NA),
+              nsim=5000)
+
+# Take quantiles of predictions from bootstrap replicates.
+# These represent the confidence interval of the mean at any value of Time.
+dat_predict_decompo$CI_lower <- apply(bb$t, 2, quantile, 0.025)
+dat_predict_decompo$CI_upper <- apply(bb$t, 2, quantile, 0.975)
+
+
+dat_predict_decompo[dat_predict_decompo$TempExpNum==27,]
+
+## PLOT
+
+
+plot_predict_decompo <- ggplot(data = dat_predict_decompo,
+        aes(x = TempExpNum, y = predict, group = interaction(Predpop,Tpop))) +
+  ggplot2::geom_ribbon(data = dat_predict_decompo,
+                       aes(ymin = CI_lower,
+                           ymax = CI_upper,
+                           x = TempExpNum,
+                           color = interaction(Predpop,Tpop),
+                           fill = interaction(Predpop,Tpop),
+                           group = interaction(Predpop,Tpop)),
+                       alpha = 0.1, size = 0.05) +
+  geom_jitter(data = data_decompo_clean,
+                       aes(x = TempExpNum, y = Deg_Rate_Raffard,
+                           color = interaction(Predpop,Tpop),
+                           shape = interaction(Predpop,Tpop)),
+                       alpha = 0.8, size = 1.2, position = position_dodge(width = 1)) +
+  geom_line(data = dat_predict_decompo,
+            aes(x = TempExpNum,
+                y = predict,
+                group = interaction(Predpop,Tpop),
+                linetype = interaction(Predpop,Tpop),
+                color = interaction(Predpop,Tpop)),
+            size = 1) +
+  scale_shape_manual(name = "Evolutionary conditions",
+                    labels=c("Ctrl.Ambiant" = "Ambient x Control" ,
+                             "Pred.Ambiant" = "Ambient x Predator" ,
+                              "Ctrl.Warm" = "Warm x Control",
+                             "Pred.Warm" = "Warm x Predator" ),
+                    values = c(16,17,16,17)) +
+  scale_linetype_manual(name = "Evolutionary conditions",
+                    labels=c("Ctrl.Ambiant" = "Ambient x Control" ,
+                             "Pred.Ambiant" = "Ambient x Predator" ,
+                              "Ctrl.Warm" = "Warm x Control",
+                             "Pred.Warm" = "Warm x Predator"),
+                    values = c("dashed","dashed","solid","solid")) +
+  scale_color_manual(name = "Evolutionary conditions",
+                    labels=c("Ctrl.Ambiant" = "Ambient x Control" ,
+                             "Pred.Ambiant" = "Ambient x Predator" ,
+                              "Ctrl.Warm" = "Warm x Control",
+                             "Pred.Warm" = "Warm x Predator" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+ scale_fill_manual(name = "Evolutionary conditions",
+                    labels=c("Ctrl.Ambiant" = "Ambient x Control" ,
+                             "Pred.Ambiant" = "Ambient x Predator" ,
+                              "Ctrl.Warm" = "Warm x Control",
+                             "Pred.Warm" = "Warm x Predator" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Test temperature") +
+  ylab("Decomposition rate") +
+  scale_x_continuous(breaks = data_decompo_clean$TempExpNum) +
+  theme_LO_sobre
+plot_predict_decompo
+# 
+ 
+# ####################################
+# ############################ PLOT 
+# ####################################
+# 
+
+# 
+# cowplot::save_plot("Plot_Fig4_predict_Decompo_Raffard.pdf",
+#                    plot_predict_decompo, base_height = 10/cm(1),
+#                    base_width = 15/cm(1), dpi = 610)
+
+
+
+```
+
+
+
+
+
+
+
+### Decompo Azelles normalized - NOT USED
+```{r }
+mod0 <- lme4::glmer( Deg_Rate_Norm ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), family = binomial(link="logit"),
+     data = data_decompo_clean) 
+
+#boundary (singular) fit: see ?isSingular
+summary(mod0)
+head(data_decompo_clean) #No variance explained by Pop -> REMOVED!
+
+mod0 <- glm(Deg_Rate_Norm ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop, family = binomial(link="logit"),
+     data = data_decompo_clean) 
+
+
+#Check for  overdispersion 
+summary(mod0)
+0.84315/108
+# No issue of overdispersion
+
+mod0 <- glm( Deg_Rate_Norm ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop, family = binomial(link="logit"),
+     data = data_decompo_clean) 
+summary(mod0)
+
+
+#Model selection 
+mod1 <- glm(Deg_Rate_Norm ~ 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop, family = binomial(link="logit"),
+     data = data_decompo_clean) 
+anova(mod0,mod1,test="Chisq") #remove triple interaction
+
+
+
+mod2 <- glm(Deg_Rate_Norm ~ 
+     TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop , family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod3 <- glm(Deg_Rate_Norm ~ 
+     Tpop:Predpop  + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop , family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod4 <- glm(Deg_Rate_Norm ~ 
+     Tpop:Predpop + TempExpNum:Predpop + 
+     TempExpNum + Tpop + Predpop , family = binomial(link="logit"),
+     data = data_decompo_clean) 
+
+anova(mod2,mod1,test="Chisq") #remove  interaction
+anova(mod3,mod1,test="Chisq") #remove  interaction
+anova(mod4,mod1,test="Chisq") #remove  interaction
+
+mod5 <- glm(Deg_Rate_Norm ~ TempExpNum + Tpop + Predpop, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+anova(mod4,mod5,test="Chisq") #Keep simplest model with no-interaction
+
+
+mod6 <- glm(Deg_Rate_Norm ~  Tpop + Predpop, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod7 <- glm(Deg_Rate_Norm ~ TempExpNum  + Predpop, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod8 <- glm(Deg_Rate_Norm ~ TempExpNum + Tpop , 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+anova(mod6,mod5,test="Chisq") #Remove all effects
+anova(mod7,mod5,test="Chisq") #Remove all effects
+anova(mod8,mod5,test="Chisq") #Remove all effects
+
+mod9 <- glm(Deg_Rate_Norm ~ 1, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean)
+anova(mod9,mod8,test="Chisq") #Remove everything!! Weird 
+
+```
+
+### Decompo Azelles - NOT USED
+```{r }
+
+
+mod0 <- lme4::glmer( Deg_Rate ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop), family = binomial(link="logit"),
+     data = data_decompo_clean) 
+
+#boundary (singular) fit: see ?isSingular
+summary(mod0) #No variance explained by Pop -> REMOVED!
+
+mod0 <- glm(Deg_Rate ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop, family = binomial(link="logit"),
+     data = data_decompo_clean) 
+
+
+#Check for  overdispersion 
+summary(mod0)
+0.46712/108
+# No issue of overdispersion
+
+mod0 <- glm(Deg_Rate ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop, family = binomial(link="logit"),
+     data = data_decompo_clean) 
+summary(mod0)
+
+
+#Model selection 
+mod1 <- glm(Deg_Rate ~ 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop, family = binomial(link="logit"),
+     data = data_decompo_clean) 
+anova(mod0,mod1,test="Chisq") #remove triple interaction
+
+
+
+mod2 <- glm(Deg_Rate ~ 
+     TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop , family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod3 <- glm(Deg_Rate ~ 
+     Tpop:Predpop  + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop , family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod4 <- glm(Deg_Rate ~ 
+     Tpop:Predpop + TempExpNum:Predpop + 
+     TempExpNum + Tpop + Predpop , family = binomial(link="logit"),
+     data = data_decompo_clean) 
+
+anova(mod2,mod1,test="Chisq") #remove  interaction
+anova(mod3,mod1,test="Chisq") #remove  interaction
+anova(mod4,mod1,test="Chisq") #remove  interaction
+
+mod5 <- glm(Deg_Rate ~ TempExpNum + Tpop + Predpop, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+anova(mod4,mod5,test="Chisq") #Keep simplest model with no-interaction
+
+
+mod6 <- glm(Deg_Rate ~  Tpop + Predpop, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod7 <- glm(Deg_Rate ~ TempExpNum  + Predpop, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+mod8 <- glm(Deg_Rate ~ TempExpNum + Tpop , 
+            family = binomial(link="logit"),
+     data = data_decompo_clean) 
+anova(mod6,mod5,test="Chisq") #Remove all effects
+anova(mod7,mod5,test="Chisq") #Remove all effects
+anova(mod8,mod5,test="Chisq") #Remove all effects
+
+mod9 <- glm(Deg_Rate ~ 1, 
+            family = binomial(link="logit"),
+     data = data_decompo_clean)
+anova(mod9,mod8,test="Chisq") #Remove everything!! Weird 
+
+```
+
+
+
+
+### Logit Decompo Azelles - NOT USED
+```{r }
+
+data_decompo_clean$Logit <- log((data_decompo_clean$Deg_Rate/(1-data_decompo_clean$Deg_Rate)))
+  
+mod0 <- lmer( Logit ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop),
+     data = data_decompo_clean) 
+
+
+#Model selection 
+mod0 <- lmer( Logit ~ TempExpNum:Tpop:Predpop + 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop),
+     data = data_decompo_clean) 
+
+mod1 <- lmer(Logit ~ 
+     Tpop:Predpop + TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop),
+     data = data_decompo_clean) 
+anova(mod0,mod1,test="Chisq") #remove triple interaction
+
+
+
+mod2 <- lmer(Logit ~ 
+     TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop),
+     data = data_decompo_clean) 
+mod3 <- lmer(Logit ~ 
+     Tpop:Predpop  + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop) ,
+     data = data_decompo_clean) 
+mod4 <- lmer(Logit ~ 
+     Tpop:Predpop + TempExpNum:Predpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop),
+     data = data_decompo_clean) 
+
+anova(mod2,mod1,test="Chisq") #remove  interaction Tpop:Predpop
+anova(mod3,mod1,test="Chisq") #KEEP  interaction
+anova(mod4,mod1,test="Chisq") #KEEP  interaction
+
+mod2 <- lmer(Logit ~ 
+     TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop + (1|Pop),
+     data = data_decompo_clean) 
+mod5 <- lmer(Logit ~ TempExpNum:Tpop + TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean) 
+mod5bis <- lmer(Logit ~ TempExpNum:Predpop + TempExpNum + Tpop + Predpop + (1|Pop), 
+     data = data_decompo_clean) 
+anova(mod2,mod5,test="Chisq") #Keep interaction
+anova(mod2,mod5bis,test="Chisq") #Keep interaction
+
+
+
+#Best model: 
+modbest <- lmer(Logit ~ 
+     TempExpNum:Predpop + TempExpNum:Tpop + 
+     TempExpNum + Tpop + Predpop +  (1|Pop),
+     data = data_decompo_clean) 
+
+# emmeans::emmeans(modbest, list(pairwise ~ Tpop:Predpop), 
+#                  adjust = "tukey") 
+
+###################### 
+###################### PREDICT 
+###################### 
+# dat_predict_decompo <- expand.grid(TempExpNum=seq(min(data_decompo_clean$TempExpNum),
+#                                                   max(data_decompo_clean$TempExpNum), 1), 
+#                                    Tpop = unique(data_decompo_clean$Tpop),
+#                                    Predpop = unique(data_decompo_clean$Predpop))
+# 
+# 
+# 
+# #Predict
+# dat_predict_decompo$predict <- predict(modbest, type = "response",  
+#                                   re.form = NA,
+#                                   newdata = dat_predict_decompo)
+# 
+# #Confidence interval
+# bb <- lme4::bootMer(modbest,
+#               FUN=function(x)predict(x, 
+#                                      newdata = dat_predict_decompo,
+#                                      re.form=NA),
+#               nsim=500)
+# 
+# # Take quantiles of predictions from bootstrap replicates.
+# # These represent the confidence interval of the mean at any value of Time.
+# dat_predict_decompo$CI_lower <- apply(bb$t, 2, quantile, 0.025)
+# dat_predict_decompo$CI_upper <- apply(bb$t, 2, quantile, 0.975)
+# 
+# 
+# 
+# 
+# plot_predict_decompo <- ggplot(data = dat_predict_decompo,
+#         aes(x = TempExpNum, y = predict, group = interaction(Predpop,Tpop))) + 
+#   ggplot2::geom_ribbon(data = dat_predict_decompo, 
+#                        aes(ymin = CI_lower, 
+#                            ymax = CI_upper, 
+#                            x = TempExpNum, 
+#                            color = interaction(Predpop,Tpop),
+#                            fill = interaction(Predpop,Tpop),
+#                            group = interaction(Predpop,Tpop)), 
+#                        alpha = 0.1, size = 0.1) + 
+#   geom_jitter(data = data_decompo_clean, 
+#                        aes(x = TempExpNum, y = Logit, 
+#                            color = interaction(Predpop,Tpop), 
+#                            shape = interaction(Predpop,Tpop)), 
+#                        alpha = 0.8, size = 1.2, position = position_dodge(width = 1)) + 
+#   geom_line(data = dat_predict_decompo,
+#             aes(x = TempExpNum, 
+#                 y = predict, 
+#                 group = interaction(Predpop,Tpop),
+#                 #linetype = interaction(Predpop,Tpop),
+#                 color = interaction(Predpop,Tpop)),
+#             size = 1) + 
+#   scale_shape_manual(name = "Evolution history",
+#                     labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#                              "Pred.Ambiant" = "Ambient x Pred" ,
+#                               "Ctrl.Warm" = "Warm x NoPred",
+#                              "Pred.Warm" = "Warm x Pred" ),
+#                     values = c(16,17,16,17)) + 
+#   # scale_linetype_manual(name = "Evolution history ",
+#   #                   labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#   #                            "Pred.Ambiant" = "Ambient x Pred" ,
+#   #                             "Ctrl.Warm" = "Warm x NoPred",
+#   #                            "Pred.Warm" = "Warm x Pred" ),
+#   #                   values = c("dashed","solid","dashed","solid")) + 
+#   scale_color_manual(name = "Evolution history",
+#                     labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#                              "Pred.Ambiant" = "Ambient x Pred" ,
+#                               "Ctrl.Warm" = "Warm x NoPred",
+#                              "Pred.Warm" = "Warm x Pred" ),
+#                     values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+#  scale_fill_manual(name = "Evolution history",
+#                     labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+#                              "Pred.Ambiant" = "Ambient x Pred" ,
+#                               "Ctrl.Warm" = "Warm x NoPred",
+#                              "Pred.Warm" = "Warm x Pred" ),
+#                     values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+#   guides(shape = guide_legend(override.aes = list(size = 5))) +
+#   xlab("Experimental temperature") +
+#   ylab("Logit Decompo Rate") +
+#   scale_x_continuous(breaks = data_decompo_clean$TempExpNum) +
+#   theme_LO_sobre 
+# plot_predict_decompo
+# 
+# 
+# # cowplot::save_plot("Plot_predict_logitrate.pdf",
+# #                    plot_predict_decompo, base_height = 10/cm(1),
+# #                    base_width = 15/cm(1), dpi = 610)
+
+```
+
+
+
+
+
+### Logit Decompo Azelles vs Control - NOT USED 
+```{r }
+
+data_decompo_clean_withcontrol$Logit <- log((data_decompo_clean_withcontrol$Deg_Rate/(1-data_decompo_clean_withcontrol$Deg_Rate)))
+
+data_decompo_clean_withcontrol$Control<- ifelse(data_decompo_clean_withcontrol$EvolHistory=="C_C",
+                                                "NoAzelles",
+                                                "Azelles")
+
+
+mod0 <- lmer( Logit ~ TempExpNum:EvolHistory + 
+     EvolHistory + TempExpNum + (1|Pop),
+     data = data_decompo_clean_withcontrol) 
+
+mod1 <- lmer( Logit ~ TempExpNum:Control + 
+     EvolHistory + TempExpNum + (1|Pop),
+     data = data_decompo_clean_withcontrol) 
+anova(mod0,mod1,test="Chisq") #Keep interaction
+
+
+#Best model: 
+modbest <-lmer( Logit ~ TempExpNum:EvolHistory + 
+     EvolHistory + TempExpNum + (1|Pop),
+     data = data_decompo_clean_withcontrol) 
+summary(modbest)
+
+#Slope:                               Estimate 
+#TempExpNum                          0.028598   0.003762   7.602
+#TempExpNum:EvolHistoryCtrl_Ambiant  0.015382   0.005076   3.030
+#TempExpNum:EvolHistoryCtrl_Warm     0.027109   0.006037   4.490
+#TempExpNum:EvolHistoryPred_Ambiant  0.009260   0.005030   1.841
+#TempExpNum:EvolHistoryPred_Warm     0.012273   0.005387   2.278
+
+emmeans::emmeans(modbest, list(pairwise ~ EvolHistory), 
+                 adjust = "tukey") 
+
+###################### 
+###################### PREDICT 
+###################### 
+dat_predict_decompo <- expand.grid(
+  TempExpNum=seq(min(data_decompo_clean_withcontrol$TempExpNum),
+                 max(data_decompo_clean_withcontrol$TempExpNum), 1),
+  EvolHistory = unique(data_decompo_clean_withcontrol$EvolHistory))
+
+
+
+#Predict
+dat_predict_decompo$predict <- predict(modbest, type = "response",  
+                                  re.form = NA,
+                                  newdata = dat_predict_decompo)
+
+#Confidence interval
+bb <- lme4::bootMer(modbest,
+              FUN=function(x)predict(x, 
+                                     newdata = dat_predict_decompo,
+                                     re.form=NA),
+              nsim=500)
+
+# Take quantiles of predictions from bootstrap replicates.
+# These represent the confidence interval of the mean at any value of Time.
+dat_predict_decompo$CI_lower <- apply(bb$t, 2, quantile, 0.025)
+dat_predict_decompo$CI_upper <- apply(bb$t, 2, quantile, 0.975)
+
+###################### 
+###################### PLOT 
+###################### 
+
+
+plot_predict_decompo <- ggplot(data = dat_predict_decompo,
+        aes(x = TempExpNum, y = predict, group = EvolHistory)) + 
+  ggplot2::geom_ribbon(data = dat_predict_decompo, 
+                       aes(ymin = CI_lower, 
+                           ymax = CI_upper, 
+                           x = TempExpNum, 
+                           color = EvolHistory,
+                           fill = EvolHistory,
+                           group = EvolHistory), 
+                       alpha = 0.1, size = 0.1) + 
+  geom_jitter(data = data_decompo_clean_withcontrol, 
+                       aes(x = TempExpNum, y = Logit, 
+                           color =EvolHistory, 
+                           shape = EvolHistory), 
+                       alpha = 0.8, size = 1.2, position = position_dodge(width = 1)) + 
+  geom_line(data = dat_predict_decompo,
+            aes(x = TempExpNum, 
+                y = predict, 
+                group = EvolHistory,
+                #linetype = interaction(Predpop,Tpop),
+                color = EvolHistory),
+            size = 1) + 
+  scale_shape_manual(name = "Evolution history",
+                    labels=c("C_C" = "Control",
+                             "Ctrl_Ambiant" = "Ambient x NoPred" ,
+                             "Pred_Ambiant" = "Ambient x Pred" ,
+                              "Ctrl_Warm" = "Warm x NoPred",
+                             "Pred_Warm" = "Warm x Pred" ),
+                    values = c(15,16,17,16,17)) +
+  # scale_linetype_manual(name = "Evolution history ",
+  #                   labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+  #                            "Pred.Ambiant" = "Ambient x Pred" ,
+  #                             "Ctrl.Warm" = "Warm x NoPred",
+  #                            "Pred.Warm" = "Warm x Pred" ),
+  #                   values = c("dashed","solid","dashed","solid")) + 
+  scale_color_manual(name = "Evolution history",
+                    labels=c("C_C" = "Control",
+                             "Ctrl_Ambiant" = "Ambient x NoPred" ,
+                              "Ctrl_Warm" = "Warm x NoPred",
+                             "Pred_Ambiant" = "Ambient x Pred" ,
+                             "Pred_Warm" = "Warm x Pred" ),
+                    values = c("black","#92c5de","#f4a582","#0571b0","#ca0020")) +
+ scale_fill_manual(name = "Evolution history",
+                    labels=c("C_C" = "Control",
+                             "Ctrl_Ambiant" = "Ambient x NoPred" ,
+                              "Ctrl_Warm" = "Warm x NoPred",
+                             "Pred_Ambiant" = "Ambient x Pred" ,
+                             "Pred_Warm" = "Warm x Pred" ),
+                    values = c("black","#92c5de","#f4a582","#0571b0","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Experimental temperature") +
+  ylab("Logit Decompo Rate") +
+  scale_x_continuous(breaks = data_decompo_clean$TempExpNum) +
+  theme_LO_sobre 
+plot_predict_decompo
+
+
+# cowplot::save_plot("Plot_predict_logitrate_control.pdf",
+#                    plot_predict_decompo, base_height = 10/cm(1),
+#                    base_width = 15/cm(1), dpi = 610)
+
+```
+
+
+
+
+# 2. ANALYSIS CORRELATION
+## Correlation 
+```{r }
+# Packages
+# ---- 1. Filtrer les températures communes ----
+datamerged_filt <- datamerged %>%
+  filter(TempExpNum %in% c(5, 15, 27))
+
+data_decompo_filt <- data_decompo_clean %>%
+  filter(TempExpNum %in% c(5, 15, 27))
+
+# ---- 2. Moyennes par Population × Temp ----
+traits_mean <- datamerged_filt %>%
+  group_by(Pop, TempExpNum) %>%
+  summarise(Slope_Corrected = mean(Slope_Corrected, na.rm = TRUE),
+            .groups = "drop")
+  # summarise(Mass_Ind = mean(Mass_Ind, na.rm = TRUE),
+  #           Slope_Corrected = mean(Slope_Corrected, na.rm = TRUE),
+  #           .groups = "drop")
+
+
+mass_mean <- datamerged %>%
+  group_by(Pop) %>%
+  summarise(Mass_Ind = mean(Mass_Ind, na.rm = TRUE),
+            .groups = "drop")
+
+decomp_mean <- data_decompo_filt %>%
+  group_by(Pop, TempExpNum) %>%
+  summarise(Deg_Rate_Raffard = mean(Deg_Rate_Raffard, na.rm = TRUE),
+            .groups = "drop")
+
+# ---- 3. Fusionner les datasets ----
+df_pop <- left_join(decomp_mean, traits_mean,
+                    by = c("Pop", "TempExpNum"))
+dfmean_pop <- left_join(decomp_mean, mass_mean, ############A FINIR ICI
+                    by = c("Pop"))
+
+
+# Vérification
+head(df_pop)
+head(df_pop)
+
+# --
+# ---- 4. Corrélations ----
+# Décomposition ~ slope
+cor_slope <- cor.test(df_pop$Deg_Rate_Raffard,
+                      df_pop$Slope_Corrected,
+                      use = "complete.obs")
+
+# Décomposition ~ masse
+cor_mass <- cor.test(dfmean_pop$Deg_Rate_Raffard,
+                     dfmean_pop$Mass_Ind,
+                     use = "complete.obs")
+
+cor_slope
+cor_mass
+
+# ---- 5. Modèle de régression linéaire ----
+# mod <- lm(Deg_Rate_Raffard ~ Slope_Corrected + Mass_Ind, data = df_pop)
+# anova(mod)
+# 0.00003781/(0.00003781+0.00020013+0.00162003)
+# 0.00020013/(0.00003781+0.00020013+0.00162003)
+
+# R² global
+# rsq_total <- rsq::rsq(mod, adj = TRUE)
+# 
+# 
+# # R² partiels (semi-partial R² pour chaque prédicteur)
+# rsq_part <- rsq::rsq.partial(mod)
+# 
+# rsq_total
+# rsq_part
+
+## PRObleme petit echantillon 
+#donc en vrai: 7.9% de la variance expliqué
+#$partial.rsq [1] 0.1127361 0.1099502 -> Permet juste de dire l'un par rapport à l'autre
+#donc dans notre cas, les deux exlique la meme quantité de variance 
+
+
+
+# ---- 6. Visualisations ----
+# Relation avec le slope
+ggplot(df_pop, aes(x = -Slope_Corrected, y = Deg_Rate_Raffard)) +
+  geom_point(aes(color = factor(TempExpNum))) +
+  geom_smooth(method = "lm", se = FALSE, col ="black") +
+  labs(x = "Metabolic rate (Slope_Corrected)",
+       y = "Decomposition (Deg_Rate_Raffard)",
+       color = "Temp")
+
+# Relation avec la masse
+ggplot(dfmean_pop, aes(x = Mass_Ind, y = Deg_Rate_Raffard)) +
+  geom_point(aes(color = factor(TempExpNum))) +
+  geom_smooth(method = "lm", se = FALSE, col="black") +
+  labs(x = "Body size (Mass_Ind)",
+       y = "Decomposition (Deg_Rate_Raffard)",
+       color = "Temp")
+``` 
+
+
+
+## Plot with SD
+```{r }
+
+
+# Pour le dataset des traits
+traits_summary <- datamerged_respiro_clean %>%
+  filter(TempExpNum %in% c(5,15,27)) %>%
+  group_by(Pop, TempExpNum) %>%
+  summarise(
+    Slope_mean = mean(Slope_Pos, na.rm=TRUE),
+    Slope_sd = sd(Slope_Pos, na.rm=TRUE),
+    Slope_se = Slope_sd / sqrt(n()),
+    n_traits = n(),
+    .groups = "drop"
+  )
+
+
+
+# Pour le dataset des mass
+mass_summary <- datamerged %>%
+  group_by(Pop) %>%
+  summarise(
+    Mass_mean = mean(Mass_Ind, na.rm=TRUE),
+    Mass_sd = sd(Mass_Ind, na.rm=TRUE),
+    Mass_se = Mass_sd / sqrt(n()),
+    n_traits = n(),
+    .groups = "drop"
+  )
+
+
+# Pour le dataset de décomposition
+decomp_summary <- data_decompo_clean %>%
+  filter(TempExpNum %in% c(5,15,27)) %>%
+  group_by(Pop, TempExpNum) %>%
+  summarise(
+    Deg_mean = mean(Deg_Rate_Raffard, na.rm=TRUE),
+    Deg_sd = sd(Deg_Rate_Raffard, na.rm=TRUE),
+    Deg_se = Deg_sd / sqrt(n()),
+    n_decomp = n(),
+    .groups = "drop"
+  )
+
+# Fusionner
+df_pop <- left_join(decomp_summary, traits_summary,
+                    by=c("Pop", "TempExpNum"))
+df_pop_mass <- left_join(decomp_summary, mass_summary,
+                    by=c("Pop"))
+# library(boot)
+# 
+# # Fonction de corrélation bootstrap
+# corr_boot <- function(data, indices) {
+#   d <- data[indices, ]
+#   cor(d$Deg_mean, d$Slope_mean)
+# }
+# 
+# set.seed(123)
+# 
+# 
+# results <- boot(df_pop, statistic=corr_boot, R=1000)
+# boot.ci(results, type="perc")
+# 
+# # Corrélation originale (rho)
+# rho_orig <- results$t0
+# rho_orig
+
+#La corrélation bootstrap entre Deg_mean et Slope_mean est très faible et l’intervalle de confiance inclut 0 :
+# 
+# 𝜌 ∈ [ − 0.42 , 0.13 ]
+# ρ∈[−0.42,0.13]
+# Interprétation
+# 
+# Pas de corrélation significative détectée
+# 
+# L’intervalle inclut 0 → aucune preuve solide que la décomposition varie systématiquement avec le taux métabolique à l’échelle Population × Temp.
+# 
+# Amplitude de l’incertitude
+# L’intervalle est large, ce qui reflète :
+# le nombre limité de populations (n ≈ 30)
+# la variation intra-population.
+# Pourquoi utiliser le bootstrap
+# Il intègre la variance des deux jeux de données différents.
+
+#C’est plus fiable que cor() simple, car tu ne regardes pas seulement la moyenne mais aussi la variation autour de cette moyenne.
+
+# Plot Décomposition vs Slope
+Plot_decompo_Slope <- ggplot(df_pop, aes(x=Slope_mean, y=Deg_mean, color=factor(TempExpNum))) +
+  geom_point(size=3) +
+  geom_errorbar(aes(ymin=Deg_mean-Deg_se, ymax=Deg_mean+Deg_se), width=0.0001) +
+  geom_errorbarh(aes(xmin=Slope_mean-Slope_se, xmax=Slope_mean+Slope_se), height=0.0001) +
+  #geom_smooth(method="lm", col = "black") +
+  labs(x="Metabolic rate (Slope_uncorrected)", y="Decomposition (Deg_Rate_Raffard)",
+       color="Temp (°C)") +
+  theme_classic()
+Plot_decompo_Slope
+
+
+# Plot Décomposition vs Mass
+plotdecompomass <- ggplot(df_pop_mass, aes(x=Mass_mean, y=Deg_mean)) +
+  geom_point( aes(color=factor(TempExpNum)) , size=3) +
+  geom_errorbar(aes(ymin=Deg_mean-Deg_se, ymax=Deg_mean+Deg_se, color=factor(TempExpNum)), width=0.0001) +
+  geom_errorbarh(aes(xmin=Mass_mean-Mass_se, xmax=Mass_mean+Mass_se, color=factor(TempExpNum)), height=0.00001) +
+  #geom_smooth(method="lm", col = "black") +
+  labs(x="Body size (Mass_Ind)", y="Decomposition (Deg_Rate_Raffard)",
+       color="Temp (°C)") +
+  theme_classic()
+plotdecompomass
+
+# cowplot::save_plot("Plot_Decompo_vs_Respiro.pdf",
+#                    Plot_decompo_Slope, base_height = 10/cm(1),
+#                    base_width = 12/cm(1), dpi = 610)
+# cowplot::save_plot("Plot_Decompo_vs_Mass.pdf",
+#                    plotdecompomass, base_height = 10/cm(1),
+#                    base_width = 12/cm(1), dpi = 610)
+
+```
+
+
+
+
+
+
+# 3. PST FST
+## 3.1- Estimate mean et slope 
+### Body mass
+```{r }
+SUM_Mass <- datamerged %>%
+  group_by(Pop, EvolHistory) %>%
+  summarise(Mean = mean(Mass_Ind, na.rm = TRUE), .groups = "drop") 
+
+
+ggplot(SUM_Mass, aes(x = Mean, y = EvolHistory, color = EvolHistory)) +
+  geom_point(position = position_jitter(width = 0, height = 0)) +
+  theme_minimal()
+
+```
+
+
+### Respiro
+```{r }
+# SUM_Respi <- datamerged_respiro_clean %>%
+#   group_by(Pop, EvolHistory) %>%
+#   summarise(Mean = mean(log(Slope_Pos), na.rm = TRUE), .groups = "drop") 
+# 
+# 
+# # Modele 
+# mod <- lm(log(Slope_Pos) ~ TempExpNum*Pop + I(TempExpNum^2)*Pop,
+#           data = datamerged_respiro_clean)
+
+
+
+### Non-linear model WITHOUT random effects, using LRT
+# mod <- lm(Slope_Corrected ~ TempExpNum*Pop + TempExpNumSquare*Pop, data = datamerged)
+# newdat <- expand_grid(TempExpNum = seq(min(datamerged$TempExpNum),
+#                                       max(datamerged$TempExpNum),
+#                                       length.out = 100), 
+#                      Pop = unique(levels(datamerged$Pop)))
+# newdat$TempExpNumSquare <- newdat$TempExpNum*newdat$TempExpNum
+# newdat$Linear <- predict(mod, newdata = newdat, re.form = NA)
+# 
+# plot_rawdata + geom_line(data = newdat, 
+#                          aes(x = TempExpNum, y = Linear, group = Pop))
+
+#Probleme ici c'est quadratique donc on prend la pente instantannée
+# Extraire la pente (dérivée par rapport à Temp) pour chaque Pop, à une valeur de Temp donnée
+#IL FAUT CHOISIR LA VALEUR! 
+# slopes <- emmeans::emtrends(mod, ~ Pop | TempExpNum, var = "TempExpNum",
+#                             at = list(TempExpNum = c(10))) %>%
+#   as.data.frame() %>%
+#   select(Pop, Slope = TempExpNum.trend)
+# slopes
+
+
+# Merge avec SUM_Respi
+# SUM_Respi <- SUM_Respi %>%
+#   left_join(slopes, by = "Pop")
+
+
+
+#Predictiosn with NLMER
+### BEST MODEL
+# nlme_best <- lme(log(Slope_Pos)  ~  ns(TempExpNum, 3) + log(Mass_Ind),
+#     random = ~1 | Pop,
+#     weights = varPower(form = ~ TempExpNum),  
+#   data = datamerged_respiro_clean,
+#   method = "REML")
+
+
+nlme_pop <- nlme::gls(log(Slope_Pos) ~ ns(TempExpNum, 3)*Pop + log(Mass_Ind),
+  weights = varPower(form = ~ TempExpNum),
+  data = datamerged_respiro_clean,
+  method = "REML")
+
+
+dat_predict_respiro_pop <- expand.grid(TempExpNum = seq(min(datamerged_respiro_clean$TempExpNum),
+                                      max(datamerged_respiro_clean$TempExpNum),
+                                      length.out = 1000), 
+                                  Mass_Ind = mean(datamerged_respiro_clean$Mass_Ind), 
+                                  Pop = unique(datamerged_respiro_clean$Pop))
+
+
+# Estimate 
+dat_predict_respiro_pop$predict <- predict(nlme_pop, 
+                                           newdata = dat_predict_respiro_pop)
+
+# 2. Extract one EvolHistory per Pop
+pop_history <- unique(datamerged_respiro_clean[, c("Pop", "EvolHistory")])
+dat_predict_respiro_pop <- merge(dat_predict_respiro_pop, pop_history, by = "Pop", all.x = TRUE)
+
+
+
+####################################
+############################ PLOT 
+####################################
+
+
+plot_predict_respiro <- ggplot(data = dat_predict_respiro_pop,
+        aes(x = TempExpNum, y = predict)) + 
+  #facet_wrap(~EvolHistory) + 
+  geom_jitter(data = datamerged_respiro_clean, 
+                       aes(x = TempExpNum, y = log(Slope_Pos), 
+                           color = interaction(Predpop,Tpop), 
+                           shape = interaction(Predpop,Tpop)), 
+                       alpha = 0.8, size = 0.8) + 
+  geom_line(data = dat_predict_respiro_pop,
+            aes(x = TempExpNum, 
+                y = predict, 
+                group = Pop),
+            size = 0.5) + 
+  scale_shape_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c(16,17,16,17)) +  
+  scale_color_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+ scale_fill_manual(name = "Evolution history",
+                    labels=c("Ctrl.Ambiant" = "Ambient x NoPred" ,
+                             "Pred.Ambiant" = "Ambient x Pred" ,
+                              "Ctrl.Warm" = "Warm x NoPred",
+                             "Pred.Warm" = "Warm x Pred" ),
+                    values = c("#92c5de","#0571b0","#f4a582","#ca0020")) +
+  guides(shape = guide_legend(override.aes = list(size = 5))) +
+  xlab("Experimental temperature") +
+  ylab("Log(Slope Pos)") +
+  scale_x_continuous(breaks = datamerged$TempExpNum) +
+  theme_LO_sobre 
+plot_predict_respiro
+
+
+# 
+# cowplot::save_plot("Plot_Respiro_PerPop_PST_Allpoos.pdf",
+#                    plot_predict_respiro, base_height = 10/cm(1),
+#                    base_width = 15/cm(1), dpi = 610)
+
+
+
+# # Extract valus 
+# unique_pops <- unique(dat_predict_respiro_pop$Pop)
+# result <- data.frame(Pop=character(),
+#                      TempNum_min_predict=numeric(),
+#                      TempNum_max_predict=numeric(),
+#                      stringsAsFactors=FALSE)
+# 
+# for (p in unique_pops) {
+#   subset_pop <- dat_predict_respiro_pop[dat_predict_respiro_pop$Pop == p, ]
+#   min_temp <- subset_pop$TempExpNum[which.min(subset_pop$predict)]
+#   max_temp <- subset_pop$TempExpNum[which.max(subset_pop$predict)]
+#   
+#   result <- rbind(result, data.frame(Pop=p, 
+#                                      TempNum_min_predict=min_temp, 
+#                                      TempNum_max_predict=max_temp))
+# }
+# 
+# result
+
+
+
+# BACK TRANSFORMATION
+# Transformation inverse pour revenir sur l’échelle de Slope_Pos
+# newdat$Slope_Pos_pred <- exp(newdat$pred)
+
+
+
+# On s'assure que la prédiction est sur l'échelle du métabolisme (exp)
+dat_predict_respiro_pop$pred_exp <- exp(dat_predict_respiro_pop$predict)
+
+# Liste des populations
+pops <- unique(dat_predict_respiro_pop$Pop)
+
+# Préparer un tableau de résultats
+SUM_Respi <- data.frame(Pop = pops,
+                      min_temp = NA,
+                      max_temp = NA,
+                      mean_level = NA,
+                      sd_shape = NA,
+                      slope_low = NA,
+                      slope_high = NA,
+                      optimum_temp = NA)
+
+
+temp_dataevolhistory <- aggregate(EvolHistory ~ Pop, data = datamerged_respiro_clean, FUN = unique)
+SUM_Respi <- merge(SUM_Respi, 
+                   temp_dataevolhistory[, c("Pop", "EvolHistory")], 
+                   by = "Pop", all.x = TRUE, all.y = FALSE)
+rm(temp_dataevolhistory)
+
+# Boucle sur chaque population
+for (i in seq_along(pops)) {
+  
+  sub <- dat_predict_respiro_pop[dat_predict_respiro_pop$Pop == pops[i], ]
+  
+  
+  SUM_Respi$min_temp[i] <- sub$TempExpNum[which.min(sub$pred_exp)]
+  SUM_Respi$max_temp[i]   <- sub$TempExpNum[which.max(sub$pred_exp)]
+  
+  
+  # Niveau moyen et "pointuosité"
+  SUM_Respi$mean_level[i] <- mean(sub$pred_exp, na.rm = TRUE)
+  SUM_Respi$sd_shape[i]   <- sd(sub$pred_exp, na.rm = TRUE)
+  
+  # Sensibilité basse température (ici entre points 1 et 20)
+  SUM_Respi$slope_low[i] <- (sub$pred_exp[20] - sub$pred_exp[1]) / 
+                          (sub$TempExpNum[20] - sub$TempExpNum[1])
+  
+  # Sensibilité haute température (ici entre les 180e et 200e points si ~200 valeurs)
+  n <- nrow(sub)
+  SUM_Respi$slope_high[i] <- (sub$pred_exp[n] - sub$pred_exp[n-20]) / 
+                           (sub$TempExpNum[n] - sub$TempExpNum[n-20])
+  
+  # Optimum thermique
+  SUM_Respi$optimum_temp[i] <- sub$TempExpNum[which.max(sub$pred_exp)]
+}
+
+SUM_Respi
+
+
+# mean_level : moyenne de exp(predict) → niveau moyen du métabolisme
+  # populations avec un métabolisme globalement élevé vs bas.
+# sd_shape : écart-type de exp(predict) → mesure de la "pointuosité" vs "platitude"
+  # faible → courbe presque plate → population tolérante à la T°,
+  # forte → courbe bien définie (optimum marqué).
+# slope_low : pente entre ~5ème et ~10ème quantile de température
+# slope_high : pente entre ~90ème et ~95ème quantile
+  # indiquent la force de la réponse aux extrêmes.
+# optimum_temp : température où la respiration est maximale (si bien défini).
+  # donc correspoind à max_temp
+
+
+# Regarder correlation entre ces variables
+
+# 1. Garder uniquement les colonnes numériques
+num_vars <- SUM_Respi[, c("min_temp", "max_temp", "mean_level", 
+                        "sd_shape", "slope_low", "slope_high", "optimum_temp")]
+# 2. Matrice de corrélation
+cor_mat <- cor(num_vars, use = "complete.obs")
+# 3. Conversion en format long pour ggplot
+cor_df <- as.data.frame(as.table(cor_mat))
+colnames(cor_df) <- c("Var1", "Var2", "Correlation")
+cor_df <- cor_df[as.numeric(cor_df$Var1) < as.numeric(cor_df$Var2), ]
+# 4. Heatmap
+ggplot(cor_df, aes(x = Var1, y = Var2, fill = Correlation)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(Correlation, 2)), size = 3) +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white",
+                       midpoint = 0, limit = c(-1, 1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title = element_blank()) +
+  labs(title = "Heatmap des corrélations entre métriques de populations",
+       fill = "Corrélation")
+
+
+
+##### Metrics
+ggplot(SUM_Respi, aes(x = mean_level, y = EvolHistory, color = EvolHistory)) +
+  geom_point(position = position_jitter(width = 0, height = 0)) +
+  ggtitle("Respiro") + 
+  theme_minimal()
+
+ggplot(SUM_Respi, aes(x = sd_shape, y = EvolHistory, color = EvolHistory)) +
+  geom_point(position = position_jitter(width = 0, height = 0)) +
+  ggtitle("Respiro") + 
+  theme_minimal()
+
+ggplot(SUM_Respi, aes(x = optimum_temp, y = EvolHistory, color = EvolHistory)) +
+  geom_point(position = position_jitter(width = 0, height = 0)) +
+  theme_minimal() + 
+  ggtitle("Respiro")
+
+```
+
+
+
+
+
+### Decompo
+```{r }
+SUM_Decompo <- data_decompo_clean %>%
+  group_by(Pop, EvolHistory) %>%
+  summarise(Mean = mean(Deg_Rate_Raffard, na.rm = TRUE), .groups = "drop") 
+
+# Model
+mod <- lm(Deg_Rate_Raffard ~ TempExpNum*Pop, data = data_decompo_clean)
+
+coefs <- coef(mod)
+pops <- levels(data_decompo_clean$Pop)
+pops <- pops[pops != "C"]
+
+# Initialiser les pentes avec NA
+slopes <- data.frame(Pop = pops, Slope = NA_real_)
+slopes$Slope[1] <- coefs["TempExpNum"]
+
+# Les autres Pop (on aligne correctement les interactions)
+for (i in 2:length(pops)) {
+  term <- paste0("TempExpNum:Pop", pops[i])
+  slopes$Slope[i] <- coefs["TempExpNum"] + coefs[term]
+}
+
+
+# Merge
+SUM_Decompo <- data_decompo_clean %>%
+  group_by(Pop, EvolHistory) %>%
+  summarise(Mean = mean(Deg_Rate_Raffard, na.rm = TRUE), .groups = "drop") %>%
+  left_join(slopes, by = "Pop")
+
+```
+
+
+
+
+
+## 3.2- Estimate GLMM
+
+### Function to extract PST
+```{r }
+
+mod_slope_decompo = glmmTMB(Slope~1+(1|EvolHistory/Pop), data = SUM_Decompo)
+model=mod_slope_decompo
+
+compute_PST_glmmTMB <- function(model, group_name = "EvolHistory") {
+  # Extract conditional random effect SDs
+  
+  # Get VarCorr object
+  vc <- VarCorr(model)
+
+  # Conditional random effects
+  cond_var <- c(Pop.EvolHistory = vc$cond$`Pop:EvolHistory`[1,1],
+    EvolHistory = vc$cond$EvolHistory[1,1])
+
+
+  # Assign names automatically from VarCorr
+  rand_names <- names(cond_var)
+  
+  
+  if(length(rand_names) != length(cond_var)) rand_names <- paste0("RE", seq_along(rand_var))
+  names(cond_var) <- rand_names
+  
+  # Residual variance
+  var_resid <- sigma(model)^2
+  
+  
+  # Total variance
+  total_var <- sum(cond_var) + var_resid
+  
+  # Variance of focal group
+  if(!group_name %in% names(cond_var)) stop(paste("Group", group_name, "not found"))
+  var_group <- cond_var[group_name]
+  
+  # PST
+  PST <- var_group / total_var
+  
+  # Build table
+  variance_table <- data.frame(
+    Group = c(names(cond_var), "Residual", "Total"),
+    Variance = c(cond_var, var_resid, total_var))
+  
+  return(list(PST = PST, table = variance_table))
+}
+
+# Usage
+res <- compute_PST_glmmTMB(mod_slope_decompo)
+res$PST       # PST value
+res$table     # Table of variance components
+
+
+```
+
+### Models GlmmTMB - Real data
+```{r }
+library(glmmTMB)
+
+data_sum_PST <- data.frame("Var" = c("Mean_Mass",
+                                     "Mean_Respiro", 
+                                     "Slope_Optimum_Respiro",
+                                     'Slope_Sd_Respiro', 
+                                     "Mean_Decompo", 
+                                     "Slope_Decompo"), 
+                           "PST" = NA, 
+                           "CI.low" = NA, 
+                           "CI.up" = NA)
+
+
+# MASS
+mod_mean_mass=glmmTMB(Mean~1+(1|EvolHistory/Pop), data = SUM_Mass)
+summary(mod_mean_mass)
+res <- compute_PST_glmmTMB(mod_mean_mass)
+res$PST
+data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$PST <- res$PST
+
+#glm.boot()
+
+
+
+#Donc valeur de PST
+#EvolHistory : 6.359e11 -> Soit en pourcentage: 6.359e-11/(2.896e-03+6.359e-11+7.936e-05) 
+#Pop/EvolHistory :2.896e-03 -> Soit en pourcentage: 2.896e-03/(2.896e-03+6.359e-11+7.936e-05) 
+# Pour le plot prendre : pourcentage de EvolHistory donc 6.359e-11/(2.896e-03+6.359e-11+7.936e-05) 
+
+
+# RESPIRO 
+mod_mean_respiro=glmmTMB(mean_level~1+(1|EvolHistory/Pop), data = SUM_Respi)
+summary(mod_mean_respiro)
+res <- compute_PST_glmmTMB(mod_mean_respiro)
+res$PST
+data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$PST <- res$PST
+
+mod_slope_respiro=glmmTMB(optimum_temp~1+(1|EvolHistory/Pop), data = SUM_Respi)
+summary(mod_slope_respiro)
+res <- compute_PST_glmmTMB(mod_slope_respiro)
+res$PST
+data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$PST <- res$PST
+
+
+mod_slope_respiro=glmmTMB(sd_shape~1+(1|EvolHistory/Pop), data = SUM_Respi)
+summary(mod_slope_respiro)
+res <- compute_PST_glmmTMB(mod_slope_respiro)
+res$PST
+data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$PST <- res$PST
+
+
+# DECOMPO 
+mod_mean_decompo = glmmTMB(Mean~1+(1|EvolHistory/Pop), data = SUM_Decompo)
+summary(mod_mean_decompo)
+res <- compute_PST_glmmTMB(mod_mean_decompo)
+res$PST
+data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$PST <- res$PST
+
+mod_slope_decompo = glmmTMB(Slope~1+(1|EvolHistory/Pop), data = SUM_Decompo)
+summary(mod_slope_decompo)
+res <- compute_PST_glmmTMB(mod_slope_decompo)
+res$PST
+data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$PST <- res$PST
+
+```
+
+
+
+
+
+### Permutation - Confidence interval
+```{r }
+
+
+nsimul <- 1000
+res_simul <- numeric(nsimul) 
+
+# Mean_Mass
+res_simul <- numeric(nsimul) 
+for (i in 1:nsimul) {
+  idx_remove <- sample(1:nrow(SUM_Mass), size = 1)
+  SUM_Mass_subset <- SUM_Mass[-idx_remove, ]
+  mod_mean_mass <- glmmTMB(Mean ~ 1 + (1 | EvolHistory/Pop), data = SUM_Mass_subset)
+  res <- compute_PST_glmmTMB(mod_mean_mass)
+  res_simul[i] <- res$PST
+}
+
+data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$CI.low <- quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Mean_Mass",]$CI.up <- quantile(res_simul,0.975)
+
+
+
+# RESPIRO 
+res_simul <- numeric(nsimul) 
+for (i in 1:nsimul) {
+  idx_remove <- sample(1:nrow(SUM_Respi), size = 1)
+  SUM_subset <- SUM_Respi[-idx_remove, ]
+  mod_subset <- glmmTMB(mean_level ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  res <- compute_PST_glmmTMB(mod_subset)
+  res_simul[i] <- res$PST
+  rm(mod_subset,SUM_subset,res)
+}
+
+data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$CI.low <- quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$CI.up <- quantile(res_simul,0.975)
+
+
+#SLOPE RESIRO
+res_simul <- numeric(nsimul) 
+for (i in 1:nsimul) {
+  idx_remove <- sample(1:nrow(SUM_Respi), size = 1)
+  SUM_subset <- SUM_Respi[-idx_remove, ]
+  mod_subset <- glmmTMB(optimum_temp ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  res <- compute_PST_glmmTMB(mod_subset)
+  res_simul[i] <- res$PST
+  rm(mod_subset,SUM_subset,res)
+}
+
+data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$CI.low <- quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$CI.up <- quantile(res_simul,0.975)
+
+#Slope SD 
+res_simul <- numeric(nsimul) 
+for (i in 1:nsimul) {
+  idx_remove <- sample(1:nrow(SUM_Respi), size = 1)
+  SUM_subset <- SUM_Respi[-idx_remove, ]
+  mod_subset <- glmmTMB(sd_shape ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  res <- compute_PST_glmmTMB(mod_subset)
+  res_simul[i] <- res$PST
+  rm(mod_subset,SUM_subset,res)
+}
+
+data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$CI.low <- quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Slope_Sd_Respiro",]$CI.up <- quantile(res_simul,0.975)
+
+
+
+# DECOMPO 
+res_simul <- numeric(nsimul) 
+for (i in 1:nsimul) {
+  idx_remove <- sample(1:nrow(SUM_Decompo), size = 1)
+  SUM_subset <- SUM_Decompo[-idx_remove, ]
+  mod_subset <- glmmTMB(Mean ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  res <- compute_PST_glmmTMB(mod_subset)
+  res_simul[i] <- res$PST
+  rm(mod_subset,SUM_subset,res)
+}
+
+data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$CI.low <- quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Mean_Decompo",]$CI.up <- quantile(res_simul,0.975)
+
+
+res_simul <- numeric(nsimul) 
+for (i in 1:nsimul) {
+  idx_remove <- sample(1:nrow(SUM_Decompo), size = 1)
+  SUM_subset <- SUM_Decompo[-idx_remove, ]
+  mod_subset <- glmmTMB(Slope ~ 1 + (1 | EvolHistory/Pop), data = SUM_subset)
+  res <- compute_PST_glmmTMB(mod_subset)
+  res_simul[i] <- res$PST
+  rm(mod_subset,SUM_subset,res)
+}
+
+data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$CI.low <- quantile(res_simul,0.025)
+data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$CI.up <- quantile(res_simul,0.975)
+
+
+
+```
+
+
+
+
+###  Plot
+```{r }
+library(ggtext)  # enables HTML/Markdown in titles
+
+data_sum_PST$PST_percent = data_sum_PST$PST*100
+data_sum_PST$CI.low_percent = data_sum_PST$CI.low*100
+data_sum_PST$CI.up_percent = data_sum_PST$CI.up*100
+
+data_sum_PST$Var <- factor(data_sum_PST$Var, levels = rev(unique(data_sum_PST$Var)))
+
+plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
+  #geom_hline(yintercept = 1:length(unique(data_sum_PST$Var)), color = "gray95", size = 0.2) +
+  geom_point(size = 3) +
+  geom_errorbarh(aes(xmin = CI.low_percent, xmax = CI.up_percent), height = 0.2, color = "black") +
+  geom_vline(xintercept = 21.67, lty = 1, color = "indianred2") + 
+  geom_vline(xintercept = 20.98, lty = 2, color = "indianred2") + 
+  geom_vline(xintercept = 22.34, lty = 2, color = "indianred2") + 
+  scale_x_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +
+  labs(
+    x = "<span style='color:indianred2;'>Fst  </span> <span style='color:white;'>------- </span> <span style='color:black;'>Pst        </span> <span style='color:white;'>------_____-- </span>", 
+    y=NULL) +
+  scale_y_discrete(breaks = unique(data_sum_PST$Var), 
+                   labels = c("Mean Mass", "Mean metabolic rate",
+                              "Temperature-dependent\noptimum metabolic rate",
+                              "Temperature-dependent\nvariation metabolic rate",
+                              "Mean decomposition rate", "Temperature-dependent\ndecomposition rate")) +
+  theme_LO_sobre +
+  theme(axis.title.x = element_markdown())  # <- override after your theme
+plotPSTFST
+
+plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
+  geom_point(aes(color = Var), size = 3) +
+  geom_errorbarh(aes(xmin = CI.low_percent, xmax = CI.up_percent, color = Var), 
+                 height = 0.2) +
+  geom_vline(xintercept = 21.67, lty = 1, color = "indianred2") + 
+  geom_vline(xintercept = 20.98, lty = 2, color = "indianred2") + 
+  geom_vline(xintercept = 22.34, lty = 2, color = "indianred2") + 
+  scale_x_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +
+  labs(
+    x = "<span style='color:indianred2;'>Fst  </span> <span style='color:white;'>------- </span> <span style='color:black;'>Pst        </span> <span style='color:white;'>------_____-- </span>", 
+    y = NULL) +
+  scale_y_discrete(breaks = unique(data_sum_PST$Var), 
+    labels = c("Mean body mass", "Mean metabolic rate",
+               "Temperature-dependent\noptimum metabolic rate",
+               "Temperature-dependent\nvariation metabolic rate",
+               "Mean decomposition rate", 
+               "Temperature-dependent\ndecomposition rate")) +
+  scale_color_manual(values = c("Mean_Mass" = "#2176AE",
+      "Mean_Respiro" = "black",
+      "Slope_Optimum_Respiro" = "#2176AE",
+      "Slope_Sd_Respiro" = "black",
+      "Mean_Decompo" = "#2176AE",
+      "Slope_Decompo" = "#2176AE")) +
+  theme_LO_sobre +
+  theme(axis.title.x = element_markdown(),
+        legend.position = "none")  # hide legend if not needed
+
+plotPSTFST
+
+# 
+# cowplot::save_plot("Plot_Fig5_Pst_Fst_nsim1000.pdf",
+#                    plotPSTFST, base_height = 12/cm(1),
+#                    base_width = 17/cm(1), dpi = 610)
+# 
+# 
+
+```
+
+
