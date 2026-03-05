@@ -53,48 +53,14 @@ pd <- position_dodge(0.25) # move them .05 to the left and right
 #####################
 ## 2 ## TEMPERATURE
 #####################
-final_data <-  read.csv(file=here::here("data",
+final_data_clean_mean_perday <-  read.csv(file=here::here("data",
                                           "Data_temperature_mesocosm_Asellus2025.csv"))
 
-final_data$N_bac <- as.factor(final_data$N_bac)
 
-pop_used <- c("A1","B1","B2","B4","B5","B6","B7","B9","C1","C3","C5","C8","C9","D6","D7")
-pop_warm <- c("B1","B5","B7","B9","C8","D7")
+final_data_clean_mean_perday$Day <- as.Date(final_data_clean_mean_perday$Day)
 
-final_data_clean <- final_data[final_data$N_bac%in%pop_used,]
-final_data_clean$Tpop <- ifelse(final_data_clean$N_bac%in%pop_warm,"Warm","Ambient")
-
-final_data_clean$Day <- as.Date(final_data_clean$Date)
-final_data_clean$Temperature <- as.numeric(as.character(final_data_clean$Temperature))
-
-#remove values of 50C because it is due to frozen thermometers (alarm set )
-ggplot(data = final_data_clean[final_data_clean$Day>as.Date("2021-01-01")&
-                                 final_data_clean$Day<as.Date("2021-01-20"),]) +
-  aes(x = Date , y = Temperature, colour = Tpop, fill = Tpop) +
-  geom_point(size = 0.5, alpha = 0.5) +
-  labs(x = "Time", y = "Temperature") + 
-  scale_color_manual(values = c("Ambient" ="#0571b0", "Warm" = "#ca0020")) +
-  scale_fill_manual(values = c("Ambient" = "#0571b0", "Warm" = "#ca0020")) +
-  ggplot2::theme_classic() + 
-  theme(text = element_text(size = 30))
-
-final_data_clean[final_data_clean$Temperature!=50,]
-final_data_clean <- final_data_clean[final_data_clean$Temperature!=50,]
-head(final_data_clean)
-
-
-
-
-#### Extract mean per day 
-library(dplyr)
-final_data_clean_mean_perday <- final_data_clean %>%
-  group_by(N_bac, Day) %>%
-  summarise(Temperature_moy = mean(Temperature, na.rm = TRUE), .groups = "drop")
-final_data_clean_mean_perday$Tpop <- ifelse(final_data_clean_mean_perday$N_bac%in%pop_warm,"Warm","Ambient")
-
+final_data_clean_mean_perday$Tpop <- as.factor(final_data_clean_mean_perday$Tpop)
 head(final_data_clean_mean_perday)
-
-
 
 #####################
 ## 3 ##  PHOTO
