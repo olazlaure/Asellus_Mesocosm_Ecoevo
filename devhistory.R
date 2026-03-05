@@ -19,6 +19,7 @@ dir.create("figures")
 
 ## Create a R directory and a file for functions
 usethis::use_r("theme_LO_sobre")
+usethis::use_r("compute_PST_glmmTMB")
 
 ## Update DESCRIPTION file
 usethis::use_package("ggplot2")
@@ -29,9 +30,11 @@ usethis::use_package("splines")
 usethis::use_package("nlme")
 usethis::use_package("glmmTMB")
 usethis::use_package("rphylopic")
-usethis::use_package("dplyr")
 usethis::use_package("Rmisc")
 usethis::use_package("cowplot")
+usethis::use_package("dplyr")
+usethis::use_package("ggtext")
+usethis::use_package("stats")
 
 ## Update NAMESPACE file
 devtools::document()
