@@ -71,7 +71,7 @@ photo_img <- png::readPNG(here::here("figures",
 photo_cropped <- photo_img[1200:4300 , 1000:7100, ]
 photo_grob <- grid::rasterGrob(photo_cropped)
 photo_plot <- cowplot::ggdraw() + cowplot::draw_grob(photo_grob)
-photo_plot
+photo_plot 
 
 ``` 
 
