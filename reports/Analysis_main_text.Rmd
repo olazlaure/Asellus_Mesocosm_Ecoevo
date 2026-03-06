@@ -1267,6 +1267,8 @@ summary(nlme_best)
 var(residuals(nlme_best))
 
 
+
+
 #Predict dataset
 dat_predict_respiro <- data.frame(TempExpNum = seq(min(datamerged_respiro_clean$TempExpNum),
                                       max(datamerged_respiro_clean$TempExpNum),
@@ -1310,7 +1312,9 @@ for(i in 1:nsim){
 
 
 ## Estimate 
-dat_predict_respiro$predict <- predict(nlme_best, newdata = dat_predict_respiro, level = 0)
+dat_predict_respiro$predict <- predict(nlme_best,
+                                       newdata = dat_predict_respiro,
+                                       level = 0)
 dat_predict_respiro$CI_lower <- apply(pred_boot, 1, quantile, 0.025)
 dat_predict_respiro$CI_upper <- apply(pred_boot, 1, quantile, 0.975)
 
@@ -1323,20 +1327,20 @@ dat_predict_respiro[which.min(dat_predict_respiro$predict), ]
 
 
 plot_predict_respiro <- ggplot(data = dat_predict_respiro,
-        aes(x = TempExpNum, y = predict)) + 
+        aes(x = TempExpNum, y = exp(predict))) + 
   ggplot2::geom_ribbon(data = dat_predict_respiro, 
-                       aes(ymin = CI_lower, 
-                           ymax = CI_upper, 
+                       aes(ymin = exp(CI_lower), 
+                           ymax = exp(CI_upper), 
                            x = TempExpNum), 
                        alpha = 0.1, size = 0.1) + 
   geom_jitter(data = datamerged_respiro_clean, 
-                       aes(x = TempExpNum, y = log(Slope_Pos), 
+                       aes(x = TempExpNum, y = Slope_Pos, 
                            color = interaction(Predpop,Tpop), 
                            shape = interaction(Predpop,Tpop)), 
                        alpha = 0.8, size = 0.8) + 
   geom_line(data = dat_predict_respiro,
             aes(x = TempExpNum, 
-                y = predict),
+                y = exp(predict)),
             size = 1.5) + 
   scale_shape_manual(name = "Evolutionary conditions",
                     labels=c("Ctrl.Ambiant" = "Ambient x Predator-free" ,
@@ -1364,7 +1368,7 @@ plot_predict_respiro <- ggplot(data = dat_predict_respiro,
 plot_predict_respiro
 
 # # 
-# cowplot::save_plot(file=here::here("figures","Plot_Fig2_predict_respiro_nLMER.pdf"),
+# cowplot::save_plot(file=here::here("figures","Plot_Fig2_predict_exp_respiro_nLMER.pdf"),
 #                    plot_predict_respiro, base_height = 10/cm(1),
 #                    base_width = 15/cm(1), dpi = 610)
 
@@ -2197,7 +2201,7 @@ data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$PST <- res$PST
 ```{r }
 
 
-nsimul <- 1000
+nsimul <- 10000
 res_simul <- numeric(nsimul) 
 
 # Mean_Mass
@@ -2343,7 +2347,7 @@ plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
                "Mean decomposition rate", 
                "Temperature-dependent\ndecomposition rate")) +
   scale_color_manual(values = c("Mean_Mass" = "#2176AE",
-      "Mean_Respiro" = "black",
+      "Mean_Respiro" = "#2176AE",
       "Slope_Optimum_Respiro" = "#2176AE",
       "Slope_Sd_Respiro" = "black",
       "Mean_Decompo" = "#2176AE",
@@ -2355,10 +2359,10 @@ plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
 plotPSTFST
 
 # 
-# cowplot::save_plot(file=here::here("figures","Plot_Fig5_Pst_Fst_nsim1000.pdf"),
+# cowplot::save_plot(file=here::here("figures","Plot_Fig5_new_Pst_Fst_nsim1000.pdf"),
 #                    plotPSTFST, base_height = 12/cm(1),
 #                    base_width = 17/cm(1), dpi = 610)
-# 
+
 # 
 
 ```
