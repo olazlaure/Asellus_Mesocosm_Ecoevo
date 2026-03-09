@@ -2338,7 +2338,7 @@ plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
   geom_vline(xintercept = 22.34, lty = 2, color = "indianred2") + 
   scale_x_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +
   labs(
-    x = "<span style='color:indianred2;'>Fst  </span> <span style='color:white;'>------- </span> <span style='color:black;'>Pst        </span> <span style='color:white;'>------_____-- </span>", 
+    x = "<span style='color:indianred2;'>Fst    </span> <span style='color:white;'>------------- </span> <span style='color:black;'>Pst        </span> <span style='color:white;'>------_____----- </span>", 
     y = NULL) +
   ggplot2::scale_y_discrete(breaks = unique(data_sum_PST$Var), 
     labels = c("Mean body mass", "Mean metabolic rate",
@@ -2362,7 +2362,7 @@ plotPSTFST
 # cowplot::save_plot(file=here::here("figures","Plot_Fig5_new_Pst_Fst_nsim1000.pdf"),
 #                    plotPSTFST, base_height = 12/cm(1),
 #                    base_width = 17/cm(1), dpi = 610)
-
+# 
 # 
 
 ```
