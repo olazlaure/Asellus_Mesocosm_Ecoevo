@@ -1821,7 +1821,11 @@ ggplot(SUM_Mass, aes(x = Mean, y = EvolHistory, color = EvolHistory)) +
 
 ### Respiro
 ```{r }
-nlme_pop <- nlme::gls(log(Slope_Pos) ~ splines::ns(TempExpNum, 3)*Pop + log(Mass_Ind),
+library(splines)
+library(nlme)
+library(glmmTMB)
+
+nlme_pop <- nlme::gls(log(Slope_Pos) ~ ns(TempExpNum, 3)*Pop + log(Mass_Ind),
   weights = nlme::varPower(form = ~ TempExpNum),
   data = datamerged_respiro_clean,
   method = "REML")
@@ -2201,7 +2205,7 @@ data_sum_PST[data_sum_PST$Var=="Slope_Decompo",]$PST <- res$PST
 ```{r }
 
 
-nsimul <- 10000
+nsimul <- 1000
 res_simul <- numeric(nsimul) 
 
 # Mean_Mass
@@ -2347,7 +2351,7 @@ plotPSTFST <- ggplot(data_sum_PST, aes(x = PST_percent, y = Var)) +
                "Mean decomposition rate", 
                "Temperature-dependent\ndecomposition rate")) +
   scale_color_manual(values = c("Mean_Mass" = "#2176AE",
-      "Mean_Respiro" = "#2176AE",
+      "Mean_Respiro" = "black",
       "Slope_Optimum_Respiro" = "#2176AE",
       "Slope_Sd_Respiro" = "black",
       "Mean_Decompo" = "#2176AE",
