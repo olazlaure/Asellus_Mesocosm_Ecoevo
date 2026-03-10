@@ -2167,7 +2167,7 @@ data_sum_PST[data_sum_PST$Var=="Mean_Respiro",]$PST <- res$PST
 mod_slope_respiro=glmmTMB::glmmTMB(optimum_temp~1+(1|EvolHistory/Pop), data = SUM_Respi)
 summary(mod_slope_respiro)
 res <- compute_PST_glmmTMB(mod_slope_respiro)
-res$PST
+res$PST 
 data_sum_PST[data_sum_PST$Var=="Slope_Optimum_Respiro",]$PST <- res$PST
 
 
